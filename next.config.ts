@@ -1,9 +1,8 @@
 import type { NextConfig } from "next";
 
+// Cache Components is off on purpose: almost every page is per-household,
+// session-scoped data that changes live, so there is little to prerender.
 const nextConfig: NextConfig = {
-  /* config options here */
-  cacheComponents: true,
-  partialPrefetching: true,
   turbopack: {
     rules: {
       "*.css": {
