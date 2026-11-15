@@ -31,38 +31,38 @@ beforeAll(async () => {
   // Shared catalog row, inserted as superuser like a seed would be.
   sharedVehicle = (
     await one<{ id: string }>(
-      "insert into public.vehicles (make, model, generation_years, type, brand_origin) values ('Honda','Odyssey','2018-2024','minivan','Japan') returning id",
+      "insert into car_compare.vehicles (make, model, generation_years, type, brand_origin) values ('Honda','Odyssey','2018-2024','minivan','Japan') returning id",
     )
   ).id;
 
-  hA = (await as(db, A1, () => one<{ id: string }>("select public.create_household('Household A', 'Owner A') as id"))).id;
-  hB = (await as(db, B1, () => one<{ id: string }>("select public.create_household('Household B', 'Owner B') as id"))).id;
+  hA = (await as(db, A1, () => one<{ id: string }>("select car_compare.create_household('Household A', 'Owner A') as id"))).id;
+  hB = (await as(db, B1, () => one<{ id: string }>("select car_compare.create_household('Household B', 'Owner B') as id"))).id;
 });
 
 describe("household creation", () => {
   it("creates owner membership, default preferences and the wishlist", async () => {
     await as(db, A1, async () => {
-      const m = await one<{ role: string }>("select role from public.household_members where user_id = $1", [A1]);
+      const m = await one<{ role: string }>("select role from car_compare.household_members where user_id = $1", [A1]);
       expect(m.role).toBe("owner");
-      expect(await count("select 1 from public.preferences where household_id = $1", [hA])).toBe(1);
+      expect(await count("select 1 from car_compare.preferences where household_id = $1", [hA])).toBe(1);
       expect(
-        await count("select 1 from public.wishlist_items where household_id = $1 and tier = 'dont_care'", [hA]),
+        await count("select 1 from car_compare.wishlist_items where household_id = $1 and tier = 'dont_care'", [hA]),
       ).toBe(45);
     });
   });
 
   it("rejects a second household for the same user", async () => {
     await expect(
-      as(db, A1, () => db.query("select public.create_household('Again', 'Owner A')")),
+      as(db, A1, () => db.query("select car_compare.create_household('Again', 'Owner A')")),
     ).rejects.toThrow(/already belong/);
   });
 
   it("does not let users insert households or members directly", async () => {
-    await expect(as(db, X, () => db.query("insert into public.households (name) values ('Sneaky')"))).rejects.toThrow();
+    await expect(as(db, X, () => db.query("insert into car_compare.households (name) values ('Sneaky')"))).rejects.toThrow();
     await expect(
       as(db, X, () =>
         db.query(
-          "insert into public.household_members (household_id, user_id, display_name) values ($1, $2, 'x')",
+          "insert into car_compare.household_members (household_id, user_id, display_name) values ($1, $2, 'x')",
           [hA, X],
         ),
       ),
@@ -75,12 +75,12 @@ describe("invites", () => {
 
   it("only the owner can create invites", async () => {
     await expect(
-      as(db, B1, () => db.query("insert into public.invites (household_id, email) values ($1, 'x@example.com')", [hA])),
+      as(db, B1, () => db.query("insert into car_compare.invites (household_id, email) values ($1, 'x@example.com')", [hA])),
     ).rejects.toThrow();
     token = (
       await as(db, A1, () =>
         one<{ token: string }>(
-          "insert into public.invites (household_id, email) values ($1, 'spouse-a@example.com') returning token",
+          "insert into car_compare.invites (household_id, email) values ($1, 'spouse-a@example.com') returning token",
           [hA],
         ),
       )
@@ -90,30 +90,30 @@ describe("invites", () => {
 
   it("outsiders cannot list another household's invites", async () => {
     await as(db, B1, async () => {
-      expect(await count("select 1 from public.invites where household_id = $1", [hA])).toBe(0);
+      expect(await count("select 1 from car_compare.invites where household_id = $1", [hA])).toBe(0);
     });
   });
 
   it("rejects a forwarded link used by a different email", async () => {
-    await expect(as(db, X, () => db.query("select public.accept_invite($1, 'X')", [token]))).rejects.toThrow(
+    await expect(as(db, X, () => db.query("select car_compare.accept_invite($1, 'X')", [token]))).rejects.toThrow(
       /different email/,
     );
   });
 
   it("accepts for the invited email (case-insensitive) and only once", async () => {
-    const r = await as(db, A2, () => one<{ id: string }>("select public.accept_invite($1, 'Spouse A') as id", [token]));
+    const r = await as(db, A2, () => one<{ id: string }>("select car_compare.accept_invite($1, 'Spouse A') as id", [token]));
     expect(r.id).toBe(hA);
     await expect(
-      as(db, A2, () => db.query("select public.accept_invite($1, 'Spouse A')", [token])),
+      as(db, A2, () => db.query("select car_compare.accept_invite($1, 'Spouse A')", [token])),
     ).rejects.toThrow(/already been used/);
   });
 
   it("members cannot promote themselves to owner", async () => {
     await expect(
-      as(db, A2, () => db.query("update public.household_members set role = 'owner' where user_id = $1", [A2])),
+      as(db, A2, () => db.query("update car_compare.household_members set role = 'owner' where user_id = $1", [A2])),
     ).rejects.toThrow(/Only display_name/);
     await as(db, A2, () =>
-      db.query("update public.household_members set display_name = 'Spouse' where user_id = $1", [A2]),
+      db.query("update car_compare.household_members set display_name = 'Spouse' where user_id = $1", [A2]),
     );
   });
 });
@@ -125,14 +125,14 @@ describe("data isolation between households", () => {
     noteId = (
       await as(db, A1, () =>
         one<{ id: string }>(
-          "insert into public.notes (household_id, vehicle_id, body) values ($1, $2, 'Third row is roomy') returning id",
+          "insert into car_compare.notes (household_id, vehicle_id, body) values ($1, $2, 'Third row is roomy') returning id",
           [hA, sharedVehicle],
         ),
       )
     ).id;
     await as(db, A2, () =>
       db.query(
-        "insert into public.scores (household_id, vehicle_id, criterion, score) values ($1, $2, 'overall', 4)",
+        "insert into car_compare.scores (household_id, vehicle_id, criterion, score) values ($1, $2, 'overall', 4)",
         [hA, sharedVehicle],
       ),
     );
@@ -140,17 +140,17 @@ describe("data isolation between households", () => {
 
   it("spouse sees the owner's note and score; other households and strangers see nothing", async () => {
     await as(db, A2, async () => {
-      expect(await count("select 1 from public.notes")).toBe(1);
-      expect(await count("select 1 from public.scores")).toBe(1);
+      expect(await count("select 1 from car_compare.notes")).toBe(1);
+      expect(await count("select 1 from car_compare.scores")).toBe(1);
     });
     for (const u of [B1, X]) {
       await as(db, u, async () => {
-        expect(await count("select 1 from public.notes")).toBe(0);
-        expect(await count("select 1 from public.scores")).toBe(0);
-        expect(await count("select 1 from public.preferences where household_id = $1", [hA])).toBe(0);
-        expect(await count("select 1 from public.wishlist_items where household_id = $1", [hA])).toBe(0);
-        expect(await count("select 1 from public.household_members where household_id = $1", [hA])).toBe(0);
-        expect(await count("select 1 from public.households where id = $1", [hA])).toBe(0);
+        expect(await count("select 1 from car_compare.notes")).toBe(0);
+        expect(await count("select 1 from car_compare.scores")).toBe(0);
+        expect(await count("select 1 from car_compare.preferences where household_id = $1", [hA])).toBe(0);
+        expect(await count("select 1 from car_compare.wishlist_items where household_id = $1", [hA])).toBe(0);
+        expect(await count("select 1 from car_compare.household_members where household_id = $1", [hA])).toBe(0);
+        expect(await count("select 1 from car_compare.households where id = $1", [hA])).toBe(0);
       });
     }
   });
@@ -158,27 +158,27 @@ describe("data isolation between households", () => {
   it("cannot write into another household", async () => {
     await expect(
       as(db, B1, () =>
-        db.query("insert into public.notes (household_id, vehicle_id, body) values ($1, $2, 'hi')", [
+        db.query("insert into car_compare.notes (household_id, vehicle_id, body) values ($1, $2, 'hi')", [
           hA,
           sharedVehicle,
         ]),
       ),
     ).rejects.toThrow();
     await as(db, B1, async () => {
-      const r = await db.query("update public.preferences set gas_price = 9 where household_id = $1", [hA]);
+      const r = await db.query("update car_compare.preferences set gas_price = 9 where household_id = $1", [hA]);
       expect(r.affectedRows).toBe(0);
     });
   });
 
   it("only the author can edit or delete a note", async () => {
     await as(db, A2, async () => {
-      const r = await db.query("update public.notes set body = 'edited' where id = $1", [noteId]);
+      const r = await db.query("update car_compare.notes set body = 'edited' where id = $1", [noteId]);
       expect(r.affectedRows).toBe(0);
-      const d = await db.query("delete from public.notes where id = $1", [noteId]);
+      const d = await db.query("delete from car_compare.notes where id = $1", [noteId]);
       expect(d.affectedRows).toBe(0);
     });
     await as(db, A1, async () => {
-      const r = await db.query("update public.notes set body = 'edited' where id = $1", [noteId]);
+      const r = await db.query("update car_compare.notes set body = 'edited' where id = $1", [noteId]);
       expect(r.affectedRows).toBe(1);
     });
   });
@@ -187,7 +187,7 @@ describe("data isolation between households", () => {
     await expect(
       as(db, A1, () =>
         db.query(
-          "insert into public.scores (household_id, vehicle_id, user_id, criterion, score) values ($1, $2, $3, 'cargo', 5)",
+          "insert into car_compare.scores (household_id, vehicle_id, user_id, criterion, score) values ($1, $2, $3, 'cargo', 5)",
           [hA, sharedVehicle, A2],
         ),
       ),
@@ -198,12 +198,12 @@ describe("data isolation between households", () => {
 describe("catalog", () => {
   it("shared catalog is readable by everyone signed in but not writable", async () => {
     await as(db, X, async () => {
-      expect(await count("select 1 from public.vehicles where id = $1", [sharedVehicle])).toBe(1);
-      const r = await db.query("update public.vehicles set hp = 999 where id = $1", [sharedVehicle]);
+      expect(await count("select 1 from car_compare.vehicles where id = $1", [sharedVehicle])).toBe(1);
+      const r = await db.query("update car_compare.vehicles set hp = 999 where id = $1", [sharedVehicle]);
       expect(r.affectedRows).toBe(0);
     });
     await expect(
-      as(db, X, () => db.query("insert into public.vehicles (make, model) values ('Fake', 'Car')")),
+      as(db, X, () => db.query("insert into car_compare.vehicles (make, model) values ('Fake', 'Car')")),
     ).rejects.toThrow();
   });
 
@@ -211,15 +211,15 @@ describe("catalog", () => {
     const v = (
       await as(db, B1, () =>
         one<{ id: string }>(
-          "insert into public.vehicles (household_id, make, model) values ($1, 'Kia', 'Telluride') returning id",
+          "insert into car_compare.vehicles (household_id, make, model) values ($1, 'Kia', 'Telluride') returning id",
           [hB],
         ),
       )
     ).id;
     await as(db, A1, async () => {
-      expect(await count("select 1 from public.vehicles where id = $1", [v])).toBe(0);
+      expect(await count("select 1 from car_compare.vehicles where id = $1", [v])).toBe(0);
       await expect(
-        db.query("insert into public.shortlist (household_id, vehicle_id) values ($1, $2)", [hA, v]),
+        db.query("insert into car_compare.shortlist (household_id, vehicle_id) values ($1, $2)", [hA, v]),
       ).rejects.toThrow();
     });
   });
@@ -228,14 +228,14 @@ describe("catalog", () => {
     const listing = (
       await as(db, B1, () =>
         one<{ id: string }>(
-          "insert into public.listings (household_id, vehicle_id, asking_price) values ($1, $2, 30000) returning id",
+          "insert into car_compare.listings (household_id, vehicle_id, asking_price) values ($1, $2, 30000) returning id",
           [hB, sharedVehicle],
         ),
       )
     ).id;
     await expect(
       as(db, A1, () =>
-        db.query("insert into public.quotes (household_id, listing_id, otd_price) values ($1, $2, 1)", [hA, listing]),
+        db.query("insert into car_compare.quotes (household_id, listing_id, otd_price) values ($1, $2, 1)", [hA, listing]),
       ),
     ).rejects.toThrow();
   });
@@ -245,8 +245,79 @@ describe("preferences constraints", () => {
   it("weights must total 100", async () => {
     await expect(
       as(db, A1, () =>
-        db.query(`update public.preferences set weights = '{"cargo":50,"price":40}' where household_id = $1`, [hA]),
+        db.query(`update car_compare.preferences set weights = '{"cargo":50,"price":40}' where household_id = $1`, [hA]),
       ),
     ).rejects.toThrow();
+  });
+});
+
+describe("sharing a Supabase project with other apps", () => {
+  it("creates nothing in the public schema", async () => {
+    const n = await count(
+      `select c.relname from pg_class c join pg_namespace n on n.oid = c.relnamespace
+       where n.nspname = 'public' and c.relname <> 'other_app'
+       union all
+       select p.proname from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+       where n.nspname = 'public' and p.proname <> 'other_app_fn'`,
+    );
+    expect(n).toBe(0);
+  });
+
+  it("leaves another app's grants in public untouched", async () => {
+    const r = await one<Record<string, boolean>>(`select
+      has_table_privilege('anon', 'public.other_app', 'select,insert,update,delete') as anon_t,
+      has_table_privilege('authenticated', 'public.other_app', 'select,insert,update,delete') as auth_t,
+      has_table_privilege('service_role', 'public.other_app', 'select,insert,update,delete') as svc_t,
+      has_function_privilege('anon', 'public.other_app_fn()', 'execute') as anon_f`);
+    expect(r).toEqual({ anon_t: true, auth_t: true, svc_t: true, anon_f: true });
+  });
+
+  it("anon and service_role cannot reach any car_compare table or function", async () => {
+    const r = await one<Record<string, boolean>>(`select
+      has_schema_privilege('anon', 'car_compare', 'usage') as anon_usage,
+      has_schema_privilege('service_role', 'car_compare', 'usage') as svc_usage,
+      (select bool_or(has_table_privilege(role, c.oid, 'select,insert,update,delete,truncate'))
+         from pg_class c join pg_namespace n on n.oid = c.relnamespace,
+              unnest(array['anon','service_role']) role
+        where n.nspname = 'car_compare' and c.relkind = 'r') as any_table,
+      (select bool_or(has_function_privilege(role, p.oid, 'execute'))
+         from pg_proc p join pg_namespace n on n.oid = p.pronamespace,
+              unnest(array['anon','service_role']) role
+        where n.nspname = 'car_compare') as any_fn`);
+    expect(r).toEqual({ anon_usage: false, svc_usage: false, any_table: false, any_fn: false });
+  });
+
+  it("signed-in users cannot write the catalog or the AI usage log directly", async () => {
+    await expect(
+      as(db, A1, () => db.query("insert into car_compare.feature_catalog (key, name, category, sort_order) values ('x','x','x',1)")),
+    ).rejects.toThrow();
+    await expect(
+      as(db, A1, () => db.query("insert into car_compare.ai_usage (household_id, route) values ($1, 'x')", [hA])),
+    ).rejects.toThrow();
+  });
+});
+
+describe("AI call quota", () => {
+  it("allows 30 calls per household per hour, shared by members", async () => {
+    await db.query("delete from car_compare.ai_usage");
+    for (let i = 0; i < 29; i++) {
+      expect((await as(db, A1, () => one<{ ok: boolean }>("select car_compare.consume_ai_call('compare') as ok"))).ok).toBe(true);
+    }
+    // The spouse's call counts against the same household.
+    expect((await as(db, A2, () => one<{ ok: boolean }>("select car_compare.consume_ai_call('compare') as ok"))).ok).toBe(true);
+    expect((await as(db, A1, () => one<{ ok: boolean }>("select car_compare.consume_ai_call('compare') as ok"))).ok).toBe(false);
+    // Another household is unaffected, and members only see their own household's usage.
+    expect((await as(db, B1, () => one<{ ok: boolean }>("select car_compare.consume_ai_call('compare') as ok"))).ok).toBe(true);
+    expect(await as(db, B1, () => count("select 1 from car_compare.ai_usage"))).toBe(1);
+  });
+
+  it("frees up slots after an hour", async () => {
+    await db.query("update car_compare.ai_usage set created_at = now() - interval '61 minutes' where household_id = $1", [hA]);
+    expect((await as(db, A1, () => one<{ ok: boolean }>("select car_compare.consume_ai_call('compare') as ok"))).ok).toBe(true);
+  });
+
+  it("requires a household and a valid route name", async () => {
+    await expect(as(db, X, () => db.query("select car_compare.consume_ai_call('compare')"))).rejects.toThrow(/household/);
+    await expect(as(db, A1, () => db.query("select car_compare.consume_ai_call('Bad Route!')"))).rejects.toThrow();
   });
 });

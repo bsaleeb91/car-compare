@@ -20,6 +20,10 @@ export async function bootDb() {
     grant usage on schema auth to anon, authenticated, service_role;
     grant execute on function auth.uid() to anon, authenticated, service_role;
     grant usage on schema public to anon, authenticated, service_role;
+    -- Stand-in for another app sharing the project: its grants must survive our migrations.
+    create table public.other_app (id int);
+    grant all on public.other_app to anon, authenticated, service_role;
+    create function public.other_app_fn() returns int language sql as 'select 1';
   `);
   const dir = join(process.cwd(), "supabase", "migrations");
   for (const f of readdirSync(dir).filter((f) => f.endsWith(".sql")).sort()) {

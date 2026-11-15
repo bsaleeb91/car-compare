@@ -13,13 +13,13 @@ Non-goals for v1: scraping dealer sites, VIN decoding, native mobile apps.
 ## Stack
 
 - **Next.js 15 (App Router) + TypeScript + Tailwind**, deployed on **Vercel**.
-- **Supabase**: Postgres, Auth (email magic link), Row Level Security, Realtime.
+- **Supabase**: Postgres, Auth (6-digit email code), Row Level Security, Realtime.
 - **Anthropic API** (Claude) called only from server routes; key in `ANTHROPIC_API_KEY`, never sent to the browser.
 - Mobile-first layout (most use will be on a phone at dealerships).
 
 ## Users, login & collaboration
 
-- Sign in with email magic link (Supabase Auth). Optional: Google sign-in.
+- Sign in with a 6-digit email code (Supabase Auth). Optional: Google sign-in.
 - Each user belongs to one **household**. The first user creates it; they invite their partner by email from Settings. The invite link joins them to the same household.
 - All data is scoped to the household with RLS: a user can only read/write rows where `household_id` is one of their households.
 - Notes and scores record their author; show the author's name and timestamp.
@@ -175,7 +175,7 @@ Default preferences: budget $30,000–$35,000, down payment $10,000, 60 months, 
 
 ## Build phases
 
-1. Scaffold Next.js + Tailwind + Supabase; schema migrations with RLS; magic-link auth; household creation and invite flow.
+1. Scaffold Next.js + Tailwind + Supabase; schema migrations with RLS; email-code sign-in; household creation and invite flow.
 2. Seed catalog; Preferences wizard; Compare table with calculations and highlighting.
 3. Vehicle detail page with notes (Realtime), scores, listings, and garage/payment/fuel panels.
 4. Claude routes (`/api/recommend`, `/api/ask`) and their UI.
@@ -197,14 +197,14 @@ Default preferences: budget $30,000–$35,000, down payment $10,000, 60 months, 
 - Both spouses can build a shared must-have / nice-to-have list; vehicles missing a must-have are flagged, and each card shows its nice-to-have match count.
 - The test-drive screen includes a driving feel & handling section scored by each member, shown next to the model's NHTSA rollover rating.
 - Calculation functions have unit tests; the app passes `npm run build` and `npm run lint`.
-- `.env.example` lists `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `ANTHROPIC_API_KEY`; no secrets committed.
+- `.env.example` lists `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `ANTHROPIC_API_KEY` (no service-role key); no secrets committed.
 
 
 ## Implementation decisions (Phase 1)
 
 These resolve overlaps in the spec above; the schema in `supabase/migrations` is authoritative.
 
-- **Multi-household app.** Any number of households can sign up. Every household-owned row has `household_id` and RLS checks membership via `public.is_member()`. A user belongs to one household (v1).
+- **Multi-household app.** Any number of households can sign up. Every household-owned row has `household_id` and RLS checks membership via `car_compare.is_member()`. A user belongs to one household (v1).
 - **Must-haves live in one place:** `wishlist_items.tier`. `preferences.must_haves` was dropped.
 - **APR lives in one place:** `preferences.apr_new / apr_cpo / apr_used` (default used for a listing's condition), plus per-listing overrides. The single `preferences.apr` was dropped. A 0% APR must be handled as `principal / months`.
 - **Trim features live in one place:** `trims.features` jsonb. `has_parking_sensors` / `has_backup_camera` were dropped.
@@ -216,3 +216,6 @@ These resolve overlaps in the spec above; the schema in `supabase/migrations` is
 - **Neutral defaults for new households:** `excluded_brand_origins` starts empty, garage size and buy-by date start unset; the preferences wizard collects them.
 - **Feature catalog** is a global table copied into each new household's wishlist as "Don't care".
 - **Next.js 16** (current at build time) instead of 15; Cache Components disabled because nearly every page is per-household live data.
+- **Own schema.** Everything lives in the `car_compare` schema, so a deployment can share a Supabase project with other apps. Only `authenticated` has access (no `anon`, no `service_role`), and nothing is created in `public`.
+- **No service-role key.** The one server-side write (the AI usage log) goes through `car_compare.consume_ai_call()`, which enforces the 30-calls-per-hour household limit as the signed-in user.
+- **Email codes instead of magic links.** Codes work when the email is opened on another device, and in-app browsers. New accounts are tagged with user metadata `{"app": "car_compare"}`.

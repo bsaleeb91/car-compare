@@ -10,7 +10,7 @@ See [`docs/SPEC.md`](docs/SPEC.md) for the full product spec and the implementat
 
 | Phase | Scope | Status |
 | --- | --- | --- |
-| 1 | Next.js + Supabase scaffold, full schema with RLS, magic-link auth, household creation, invites | **Done** |
+| 1 | Next.js + Supabase scaffold, full schema with RLS, email-code sign-in, household creation, invites | **Done** |
 | 2 | Seed catalog, preferences wizard, compare table and calculations | Next |
 | 3 | Vehicle detail page: notes (Realtime), scores, listings, garage/payment/fuel panels | |
 | 4 | Claude routes (`/api/recommend`, `/api/ask`) | |
@@ -20,7 +20,7 @@ See [`docs/SPEC.md`](docs/SPEC.md) for the full product spec and the implementat
 ## Stack
 
 - Next.js 16 (App Router) + TypeScript + Tailwind CSS 4
-- Supabase: Postgres, Auth (email magic link), Row Level Security, Realtime
+- Supabase: Postgres (own `car_compare` schema), Auth (6-digit email code), Row Level Security, Realtime
 - Anthropic API (Claude), called only from server routes
 - Vitest + PGlite (in-memory Postgres) for database and calculation tests
 
@@ -33,11 +33,10 @@ See [`docs/SPEC.md`](docs/SPEC.md) for the full product spec and the implementat
    npx supabase link --project-ref <your-ref>
    npx supabase db push
    ```
-4. **Configure auth** (Dashboard → Authentication → URL Configuration):
-   - Site URL: `http://localhost:3000` (your production URL once deployed)
-   - Redirect URLs: `http://localhost:3000/auth/callback` and `https://<your-domain>/auth/callback`
-5. **Environment:** `cp .env.example .env.local` and fill in the values.
-6. **Run:** `npm run dev` and open http://localhost:3000.
+4. **Expose the schema to the API** (Dashboard → Project Settings → Data API → Exposed schemas): add `car_compare`. Or in `supabase/config.toml`, add it to `[api] schemas`.
+5. **Send a code, not a link.** Sign-in uses a 6-digit code typed into the app. In Authentication → Email Templates, make the "Magic Link" and "Confirm signup" templates show `{{ .Token }}` (for example, "Your Car Compare code is {{ .Token }}"). With the default templates, people get a link the app doesn't use.
+6. **Environment:** `cp .env.example .env.local` and fill in the values.
+7. **Run:** `npm run dev` and open http://localhost:3000.
 
 ### Before inviting other households
 
@@ -54,10 +53,13 @@ Supabase's built-in email sender is rate-limited to a handful of emails per hour
 
 ## Security model
 
-- Every household-owned table has `household_id`; RLS policies call `public.is_member(household_id)`.
+- All tables and functions live in the `car_compare` schema, so the app can share a Supabase project with other apps without touching their objects. Only signed-in users (`authenticated`) can use it; `anon` and `service_role` get no access.
+- New accounts are created with user metadata `{"app": "car_compare"}`, so other apps sharing the project's users can tell them apart.
+- Every household-owned table has `household_id`; RLS policies call `car_compare.is_member(household_id)`.
 - Child rows (quotes, contact log, seat-fit checks, and so on) use composite foreign keys `(parent_id, household_id)`, so they can't point at another household's rows.
-- The shared vehicle catalog (`household_id IS NULL`) is readable by all signed-in users and writable only through migrations or the service role. Vehicles a household adds are private to that household.
+- The shared vehicle catalog (`household_id IS NULL`) is readable by all signed-in users and writable only through migrations. Vehicles a household adds are private to that household.
 - Households and memberships are created only through the `create_household` and `accept_invite` functions. Invites are single-use, expire after 14 days, and must be accepted by the invited email address.
-- `SUPABASE_SERVICE_ROLE_KEY` and `ANTHROPIC_API_KEY` are server-only. No secrets are committed.
+- Claude calls are rate-limited per household (30 per hour) by `car_compare.consume_ai_call()`, which runs as the signed-in user.
+- The app needs no service-role key. `ANTHROPIC_API_KEY` is server-only. No secrets are committed.
 
 `tests/db/rls.test.ts` checks these rules. It boots the real migration in PGlite with a stub of Supabase's `auth` schema.
