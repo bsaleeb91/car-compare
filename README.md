@@ -28,11 +28,7 @@ See [`docs/SPEC.md`](docs/SPEC.md) for the full product spec and the implementat
 
 1. **Install:** `npm install`
 2. **Create a Supabase project** at [supabase.com](https://supabase.com).
-3. **Apply the schema.** Either paste `supabase/migrations/20261113000000_init.sql` into the SQL editor, or with the CLI:
-   ```sh
-   npx supabase link --project-ref <your-ref>
-   npx supabase db push
-   ```
+3. **Apply the schema** with `npx supabase login`, then `npm run migrate -- up --ref <your-project-ref>`. See [Migrations](#migrations).
 4. **Expose the schema to the API** (Dashboard → Project Settings → Data API → Exposed schemas): add `car_compare`. Or in `supabase/config.toml`, add it to `[api] schemas`.
 5. **Send a code, not a link.** Sign-in uses a 6-digit code typed into the app. In Authentication → Email Templates, make the "Magic Link" and "Confirm signup" templates show `{{ .Token }}` (for example, "Your Car Compare code is {{ .Token }}"). With the default templates, people get a link the app doesn't use.
 6. **Environment:** `cp .env.example .env.local` and fill in the values.
@@ -49,7 +45,25 @@ Supabase's built-in email sender is rate-limited to a handful of emails per hour
 | `npm run dev` | Dev server |
 | `npm run build` | Production build |
 | `npm run lint` | ESLint |
-| `npm test` | Vitest: RLS / household-isolation tests against an in-memory Postgres |
+| `npm test` | Vitest: RLS / household-isolation tests and migration checks against an in-memory Postgres |
+| `npm run migrate` | Apply and check migrations on a hosted project (see below) |
+
+## Migrations
+
+Car Compare is built to share a Supabase project with another app, so it keeps its own migration history in `car_compare_migrations.applied` instead of Supabase's `supabase_migrations` (which belongs to whichever app owns the project).
+
+| Command | What it does |
+| --- | --- |
+| `npm run migrate -- status --ref <ref>` | Read-only. Lists applied and pending migrations, and flags files edited after they were applied |
+| `npm run migrate -- up --ref <ref>` | Applies pending migrations in order. Each runs in one transaction together with its history row |
+| `npm run migrate -- baseline --ref <ref> <version>` | Records a migration that was already applied by hand, without running it |
+
+Rules:
+
+- **Don't use `supabase db push`** for this app. It would write to the shared history.
+- **Never edit an applied migration.** Add a new file with a later timestamp (`YYYYMMDDHHMMSS_name.sql`). `status` and `up` refuse to run if an applied file has changed.
+- **Stay inside `car_compare`.** Migrations must not touch `public` or use blanket grants on other schemas. `tests/migrate.test.ts` enforces this.
+- **Exposed schemas:** `car_compare` must already exist before it's added to the Data API's exposed schemas. Listing a schema that doesn't exist takes the whole API down.
 
 ## Security model
 
