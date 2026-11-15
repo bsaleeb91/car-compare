@@ -6,6 +6,8 @@ import { APP_TAG } from "@/lib/supabase/env";
 
 type Step = "email" | "code";
 
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "");
+
 export function LoginForm({ next }: { next: string }) {
   const [step, setStep] = useState<Step>("email");
   const [email, setEmail] = useState("");
@@ -19,8 +21,14 @@ export function LoginForm({ next }: { next: string }) {
     setError(null);
     const { error } = await createClient().auth.signInWithOtp({
       email: email.trim(),
-      // `data` is stored on the account only when it's first created.
-      options: { shouldCreateUser: true, data: { app: APP_TAG } },
+      // `data` is stored on the account only when it's first created. The redirect URL is
+      // sent with every request, so a shared email template can tell which app asked even
+      // for an account another app created. (It must be on the project's redirect allow-list.)
+      options: {
+        shouldCreateUser: true,
+        data: { app: APP_TAG },
+        ...(SITE_URL ? { emailRedirectTo: SITE_URL } : {}),
+      },
     });
     setBusy(false);
     if (error) {

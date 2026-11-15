@@ -30,9 +30,10 @@ See [`docs/SPEC.md`](docs/SPEC.md) for the full product spec and the implementat
 2. **Create a Supabase project** at [supabase.com](https://supabase.com).
 3. **Apply the schema** with `npx supabase login`, then `npm run migrate -- up --ref <your-project-ref>`. See [Migrations](#migrations).
 4. **Expose the schema to the API** (Dashboard → Project Settings → Data API → Exposed schemas): add `car_compare`. Or in `supabase/config.toml`, add it to `[api] schemas`.
-5. **Send a code, not a link.** Sign-in uses a 6-digit code typed into the app. In Authentication → Email Templates, make the "Magic Link" and "Confirm signup" templates show `{{ .Token }}` (for example, "Your Car Compare code is {{ .Token }}"). With the default templates, people get a link the app doesn't use.
-6. **Environment:** `cp .env.example .env.local` and fill in the values.
-7. **Run:** `npm run dev` and open http://localhost:3000.
+5. **Allow the redirect URL** (Authentication → URL Configuration → Redirect URLs): add your `NEXT_PUBLIC_SITE_URL`. The app sends it with each sign-in request, so a shared email template can word the email for this app.
+6. **Send a code, not a link.** Sign-in uses a 6-digit code typed into the app. In Authentication → Email Templates, make the "Magic Link" and "Confirm signup" templates show `{{ .Token }}` (for example, "Your Car Compare code is {{ .Token }}"). With the default templates, people get a link the app doesn't use.
+7. **Environment:** `cp .env.example .env.local` and fill in the values.
+8. **Run:** `npm run dev` and open http://localhost:3000.
 
 ### Before inviting other households
 
