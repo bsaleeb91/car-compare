@@ -69,6 +69,7 @@ Rules:
 
 - All tables and functions live in the `car_compare` schema, so the app can share a Supabase project with other apps without touching their objects. Only signed-in users (`authenticated`) can use it; `anon` and `service_role` get no access.
 - New accounts are created with user metadata `{"app": "car_compare"}`, so other apps sharing the project's users can tell them apart.
+- The app never deletes login accounts. In a shared project one account can belong to several apps, and deleting it removes that person's data in all of them. Leaving a household removes only the membership.
 - Every household-owned table has `household_id`; RLS policies call `car_compare.is_member(household_id)`.
 - Child rows (quotes, contact log, seat-fit checks, and so on) use composite foreign keys `(parent_id, household_id)`, so they can't point at another household's rows.
 - The shared vehicle catalog (`household_id IS NULL`) is readable by all signed-in users and writable only through migrations. Vehicles a household adds are private to that household.
