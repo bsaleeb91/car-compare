@@ -321,3 +321,15 @@ describe("AI call quota", () => {
     await expect(as(db, A1, () => db.query("select car_compare.consume_ai_call('Bad Route!')"))).rejects.toThrow();
   });
 });
+
+describe("starter catalog seed", () => {
+  it("has 8 shared, unverified vehicles that every signed-in user can see but not change", async () => {
+    const seeded = await count(
+      "select 1 from car_compare.vehicles where household_id is null and specs_verified = false and generation_years <> '2018-2024'",
+    );
+    expect(seeded).toBe(8);
+    expect(await as(db, X, () => count("select 1 from car_compare.vehicles where household_id is null"))).toBe(9);
+    await as(db, A1, () => db.query("update car_compare.vehicles set hp = 1 where household_id is null"));
+    expect(await count("select 1 from car_compare.vehicles where hp = 1")).toBe(0);
+  });
+});
