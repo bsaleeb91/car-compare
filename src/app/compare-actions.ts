@@ -37,6 +37,25 @@ export async function setScoreAction(input: { vehicleId: string; criterion: stri
   return { ok: true };
 }
 
+/** Removes a car from the household's shortlist (kept as "rejected", with its scores) or restores it. */
+export async function setShortlistAction(input: { vehicleId: string; removed: boolean }) {
+  const m = await requireMembership();
+  const p = z.object({ vehicleId: z.uuid(), removed: z.boolean() }).parse(input);
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("shortlist")
+    .update({ status: p.removed ? "rejected" : "considering" })
+    .eq("household_id", m.household.id)
+    .eq("vehicle_id", p.vehicleId)
+    .select("vehicle_id");
+  if (error || !data?.length) {
+    if (error) console.error(error);
+    return { error: p.removed ? "Couldn't remove that car. Try again." : "Couldn't restore that car. Try again." };
+  }
+  revalidatePath("/", "layout");
+  return { ok: true };
+}
+
 const money = z.coerce.number().min(0).max(10_000_000);
 const optInches = z.preprocess((v) => (v === "" || v == null ? null : v), z.coerce.number().min(1).max(2000).nullable());
 

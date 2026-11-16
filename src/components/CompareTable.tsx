@@ -1,4 +1,5 @@
 import { TypeChip, FitChip, ScoreBadge } from "@/components/chips";
+import { ShortlistButton } from "@/components/ShortlistButton";
 import type { Vehicle, Preferences } from "@/lib/data";
 import { amountFinanced, annualFuelCost, bestIndexes, garageFit, monthlyPayment } from "@/lib/calc";
 
@@ -128,9 +129,12 @@ export function CompareTable({ prefs, cols }: { prefs: Preferences; cols: Column
                 <p className="mt-2 text-xs text-muted">{c.vehicle.make}</p>
                 <p className="text-base font-semibold leading-tight">{c.vehicle.model}</p>
                 {!c.isCurrent && (
-                  <div className="mt-2">
-                    <ScoreBadge score={c.score} complete={c.complete} />
-                  </div>
+                  <>
+                    <div className="mt-2">
+                      <ScoreBadge score={c.score} complete={c.complete} />
+                    </div>
+                    <ShortlistButton vehicleId={c.vehicle.id} name={`${c.vehicle.make} ${c.vehicle.model}`} className="-ml-2 mt-1" />
+                  </>
                 )}
               </th>
             ))}

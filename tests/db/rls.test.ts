@@ -333,3 +333,24 @@ describe("starter catalog seed", () => {
     expect(await count("select 1 from car_compare.vehicles where hp = 1")).toBe(0);
   });
 });
+
+describe("removing a car from the shortlist", () => {
+  it("members can remove and restore; other households can't touch it", async () => {
+    await as(db, A1, () =>
+      db.query("insert into car_compare.shortlist (household_id, vehicle_id) values ($1, $2) on conflict do nothing", [hA, sharedVehicle]),
+    );
+    const setStatus = async (user: string, status: string) =>
+      (
+        await as(db, user, () =>
+          db.query("update car_compare.shortlist set status = $3 where household_id = $1 and vehicle_id = $2 returning 1", [
+            hA,
+            sharedVehicle,
+            status,
+          ]),
+        )
+      ).rows.length;
+    expect(await setStatus(B1, "rejected")).toBe(0); // invisible to household B
+    expect(await setStatus(A1, "rejected")).toBe(1);
+    expect(await setStatus(A1, "considering")).toBe(1);
+  });
+});

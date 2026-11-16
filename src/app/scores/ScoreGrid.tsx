@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { CRITERIA, weightedScore, type Weights } from "@/lib/calc";
 import { ScoreBadge, TypeChip, scoreClass } from "@/components/chips";
 import { setScoreAction } from "@/app/compare-actions";
+import { ShortlistButton } from "@/components/ShortlistButton";
 
 type V = { id: string; make: string; model: string; type: string; avg: Partial<Record<string, number>>; rank: number | null };
 
@@ -65,8 +66,9 @@ export function ScoreGrid({
                     <span className="text-sm font-normal text-muted">{v.make}</span> {v.model}
                   </h2>
                 </div>
-                <div className="w-28 shrink-0">
+                <div className="flex w-28 shrink-0 flex-col items-end">
                   <ScoreBadge score={me.score} complete={me.complete} />
+                  <ShortlistButton vehicleId={v.id} name={`${v.make} ${v.model}`} className="-mr-2 mt-1 items-end" />
                 </div>
               </header>
               <ul className="space-y-2">

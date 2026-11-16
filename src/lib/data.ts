@@ -90,16 +90,21 @@ export async function getComparison(householdId: string) {
     supabase
       .from("shortlist")
       .select("status, vehicles(*)")
-      .eq("household_id", householdId)
-      .neq("status", "rejected"),
+      .eq("household_id", householdId),
     supabase.from("scores").select("vehicle_id, user_id, criterion, score").eq("household_id", householdId),
     supabase.from("household_members").select("user_id, display_name").eq("household_id", householdId).order("joined_at"),
   ]);
   for (const r of [shortlist, scores, members]) if (r.error) throw r.error;
 
-  const vehicles = (shortlist.data ?? [])
-    .map((s) => nums(s.vehicles as unknown as Vehicle, VEHICLE_NUMS))
-    .sort((a, b) => a.type.localeCompare(b.type) || a.make.localeCompare(b.make) || a.model.localeCompare(b.model));
+  const byName = (a: Vehicle, b: Vehicle) =>
+    a.type.localeCompare(b.type) || a.make.localeCompare(b.make) || a.model.localeCompare(b.model);
+  const all = (shortlist.data ?? []).map((s) => ({
+    status: s.status as string,
+    vehicle: nums(s.vehicles as unknown as Vehicle, VEHICLE_NUMS),
+  }));
+  // "Removed" cars stay in the shortlist as rejected, so their scores survive and they can come back.
+  const vehicles = all.filter((s) => s.status !== "rejected").map((s) => s.vehicle).sort(byName);
+  const removed = all.filter((s) => s.status === "rejected").map((s) => s.vehicle).sort(byName);
 
   let current: Vehicle | null = null;
   if (prefs.profile.current_vehicle_id) {
@@ -115,7 +120,7 @@ export async function getComparison(householdId: string) {
   const ranks = rank(results.map((r) => r.score));
   const ranked: Ranked[] = results.map((r, i) => ({ ...r, rank: ranks[i] }));
 
-  return { prefs, vehicles, current, scoreRows, ranked, members: members.data ?? [] };
+  return { prefs, vehicles, removed, current, scoreRows, ranked, members: members.data ?? [] };
 }
 
 export const vehicleName = (v: Pick<Vehicle, "make" | "model">) => `${v.make} ${v.model}`;

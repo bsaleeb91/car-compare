@@ -2,12 +2,13 @@ import { AppHeader } from "@/components/AppHeader";
 import { requireMembership } from "@/lib/session";
 import { getComparison } from "@/lib/data";
 import { ScoreGrid } from "./ScoreGrid";
+import { RemovedList } from "@/components/RemovedList";
 
 export const metadata = { title: "Scores · Car Compare" };
 
 export default async function ScoresPage() {
   const m = await requireMembership();
-  const { ranked, scoreRows, members, prefs } = await getComparison(m.household.id);
+  const { ranked, scoreRows, members, prefs, removed } = await getComparison(m.household.id);
   const order = [...ranked].sort((a, b) => (a.rank ?? 99) - (b.rank ?? 99));
   const mine = Object.fromEntries(
     scoreRows.filter((s) => s.user_id === m.userId).map((s) => [`${s.vehicle_id}:${s.criterion}`, s.score]),
@@ -39,6 +40,7 @@ export default async function ScoresPage() {
           weights={prefs.weights}
           showAverage={others}
         />
+        {removed.length > 0 && <RemovedList removed={removed} />}
       </main>
     </>
   );

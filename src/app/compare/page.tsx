@@ -3,12 +3,13 @@ import { AppHeader } from "@/components/AppHeader";
 import { CompareTable, usd } from "@/components/CompareTable";
 import { requireMembership } from "@/lib/session";
 import { getComparison } from "@/lib/data";
+import { RemovedList } from "@/components/RemovedList";
 
 export const metadata = { title: "Compare · Car Compare" };
 
 export default async function ComparePage() {
   const m = await requireMembership();
-  const { prefs, ranked, current } = await getComparison(m.household.id);
+  const { prefs, ranked, current, removed } = await getComparison(m.household.id);
   const order = [...ranked].sort((a, b) => (a.rank ?? 99) - (b.rank ?? 99));
   const cols = [...order.map((r) => ({ ...r, isCurrent: false })), ...(current ? [{ vehicle: current, score: null, complete: false, rank: null, avg: {}, isCurrent: true }] : [])];
   const noGarage = prefs.garage_depth_in == null;
@@ -38,10 +39,12 @@ export default async function ComparePage() {
         )}
 
         {cols.length === 0 ? (
-          <p className="card text-muted">Your shortlist is empty.</p>
+          <p className="card text-muted">Your list is empty. Put cars back from the removed list below.</p>
         ) : (
           <CompareTable prefs={prefs} cols={cols} />
         )}
+
+        {removed.length > 0 && <RemovedList removed={removed} />}
 
         <p className="text-xs text-muted">
           Specs are manufacturer figures for each model&apos;s current generation and not yet verified: confirm on the window
