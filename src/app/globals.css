@@ -1,52 +1,130 @@
 @import "tailwindcss";
 
+/*
+ * Theme: "road trip". Indigo-violet primary, teal secondary, sunny amber highlights,
+ * on a soft lavender background. Every color is a token so dark mode is one block.
+ */
 :root {
-  --background: #f6f7f9;
+  --background: #f6f4fd;
   --surface: #ffffff;
-  --foreground: #14181f;
-  --muted: #5d6673;
-  --border: #e2e5ea;
-  --accent: #1f6feb;
+  --surface-2: #f0edfb;
+  --foreground: #1c1740;
+  --muted: #625c80;
+  --border: #e4dff4;
+  --accent: #5b3ee6;
   --accent-foreground: #ffffff;
-  --danger: #c62828;
-  --success: #1b7f3b;
+  --accent-soft: #ece7ff;
+  --teal: #0f8f84;
+  --teal-soft: #d9f5f1;
+  --amber: #d97706;
+  --amber-soft: #fff3d6;
+  --coral: #e11d48;
+  --coral-soft: #ffe4ea;
+  --danger: #c81e1e;
+  --success: #15803d;
+  --best: #dcfce7;
+  --best-foreground: #14632f;
+  --hero-from: #4f34d9;
+  --hero-via: #7c3aed;
+  --hero-to: #0f9b8e;
+  --score-1: #fde2e2;
+  --score-1-fg: #a61b1b;
+  --score-2: #ffe8d1;
+  --score-2-fg: #b4490c;
+  --score-3: #fff4c2;
+  --score-3-fg: #8a5a00;
+  --score-4: #dcf7e3;
+  --score-4-fg: #17763a;
+  --score-5: #b9efcb;
+  --score-5-fg: #0d5a29;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0b0f14;
-    --surface: #151a21;
-    --foreground: #e8ebef;
-    --muted: #9aa4b1;
-    --border: #2a313b;
-    --accent: #4c8dff;
-    --accent-foreground: #0b0f14;
-    --danger: #ff6b6b;
-    --success: #4cc27a;
+    --background: #0e0c1c;
+    --surface: #17142c;
+    --surface-2: #211d3b;
+    --foreground: #eeebff;
+    --muted: #a8a2c9;
+    --border: #2f2a4d;
+    --accent: #8f7bff;
+    --accent-foreground: #0e0c1c;
+    --accent-soft: #2a2350;
+    --teal: #3dd6c6;
+    --teal-soft: #103a37;
+    --amber: #fbbf24;
+    --amber-soft: #3a2c0a;
+    --coral: #fb7190;
+    --coral-soft: #3d1522;
+    --danger: #ff7373;
+    --success: #4ade80;
+    --best: #12391f;
+    --best-foreground: #86efac;
+    --hero-from: #3a24b0;
+    --hero-via: #5b21b6;
+    --hero-to: #0b6f66;
+    --score-1: #3d1616;
+    --score-1-fg: #fca5a5;
+    --score-2: #3d2410;
+    --score-2-fg: #fdba74;
+    --score-3: #3a320c;
+    --score-3-fg: #fde047;
+    --score-4: #133520;
+    --score-4-fg: #86efac;
+    --score-5: #0f4a26;
+    --score-5-fg: #bbf7d0;
   }
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
   --color-foreground: var(--foreground);
   --color-muted: var(--muted);
   --color-border: var(--border);
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
+  --color-accent-soft: var(--accent-soft);
+  --color-teal: var(--teal);
+  --color-teal-soft: var(--teal-soft);
+  --color-amber: var(--amber);
+  --color-amber-soft: var(--amber-soft);
+  --color-coral: var(--coral);
+  --color-coral-soft: var(--coral-soft);
   --color-danger: var(--danger);
   --color-success: var(--success);
+  --color-best: var(--best);
+  --color-best-foreground: var(--best-foreground);
+  --color-score-1: var(--score-1);
+  --color-score-1-fg: var(--score-1-fg);
+  --color-score-2: var(--score-2);
+  --color-score-2-fg: var(--score-2-fg);
+  --color-score-3: var(--score-3);
+  --color-score-3-fg: var(--score-3-fg);
+  --color-score-4: var(--score-4);
+  --color-score-4-fg: var(--score-4-fg);
+  --color-score-5: var(--score-5);
+  --color-score-5-fg: var(--score-5-fg);
   --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
 }
 
 body {
-  background: var(--background);
+  background:
+    radial-gradient(60rem 30rem at 100% -10%, color-mix(in oklab, var(--accent) 10%, transparent), transparent 70%),
+    radial-gradient(50rem 25rem at -10% 0%, color-mix(in oklab, var(--teal) 9%, transparent), transparent 70%),
+    var(--background);
+  background-attachment: fixed;
   color: var(--foreground);
   font-family: var(--font-sans);
 }
 
+@utility hero {
+  background: linear-gradient(120deg, var(--hero-from), var(--hero-via) 55%, var(--hero-to));
+  color: #ffffff;
+}
 @utility card {
-  @apply rounded-2xl border border-border bg-surface p-4;
+  @apply rounded-2xl border border-border bg-surface p-4 shadow-[0_1px_2px_rgb(40_20_120/0.05),0_4px_16px_-8px_rgb(40_20_120/0.12)];
 }
 @utility input {
   @apply w-full rounded-xl border border-border bg-surface px-3 py-3 text-base outline-none focus:border-accent focus:ring-2 focus:ring-accent/30;
@@ -58,11 +136,14 @@ body {
   @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-4 py-2 text-base font-medium transition disabled:opacity-50;
 }
 @utility btn-primary {
-  @apply btn bg-accent text-accent-foreground hover:opacity-90;
+  @apply btn bg-accent text-accent-foreground shadow-sm shadow-accent/30 hover:brightness-110;
 }
 @utility btn-secondary {
-  @apply btn border border-border bg-surface hover:bg-background;
+  @apply btn border border-border bg-surface hover:bg-accent-soft;
 }
 @utility btn-danger {
   @apply btn border border-danger/40 text-danger hover:bg-danger/10;
+}
+@utility chip {
+  @apply inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium;
 }

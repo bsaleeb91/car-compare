@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { AppHeader } from "@/components/AppHeader";
 import { createClient } from "@/lib/supabase/server";
 import { requireMembership } from "@/lib/session";
@@ -28,7 +29,7 @@ export default async function SettingsPage() {
     <>
       <AppHeader membership={m} />
       <main className="mx-auto w-full max-w-3xl flex-1 space-y-4 px-4 py-6">
-        <h1 className="text-2xl font-semibold">Settings</h1>
+        <h1 className="text-2xl font-bold">Settings</h1>
 
         <section className="card space-y-4">
           <h2 className="font-semibold">Household</h2>
@@ -110,10 +111,13 @@ export default async function SettingsPage() {
           <DisplayNameForm displayName={m.member.display_name} />
         </section>
 
-        <section className="card">
-          <h2 className="font-semibold">Preferences</h2>
-          <p className="mt-1 text-sm text-muted">Budget, financing, garage and priority weights. Coming next.</p>
-        </section>
+        <Link href="/preferences" className="card flex items-center justify-between gap-3 hover:bg-accent-soft">
+          <span>
+            <span className="block font-semibold">Preferences</span>
+            <span className="mt-1 block text-sm text-muted">Budget, financing, garage and priority weights.</span>
+          </span>
+          <span aria-hidden className="text-accent">→</span>
+        </Link>
       </main>
     </>
   );
