@@ -11,6 +11,8 @@ import { getComparison } from "@/lib/data";
 import { CRITERIA, TEST_DRIVE, amountFinanced, annualFuelCost, garageFit, monthlyPayment } from "@/lib/calc";
 import { NotesThread, type Note } from "./NotesThread";
 import { matchFeatures, type FeatureStatus } from "@/lib/features";
+import { getListings, listingTitle, today } from "@/lib/listings";
+import { StatusChip as ListingStatusChip, FollowUpBadge } from "@/app/listings/bits";
 
 export default async function CarPage({ params }: PageProps<"/cars/[id]">) {
   const { id } = await params;
@@ -25,14 +27,21 @@ export default async function CarPage({ params }: PageProps<"/cars/[id]">) {
   const isCurrent = current?.id === id;
 
   const supabase = await createClient();
+  const listings = await getListings(m.household.id, id);
+  const listingNames = Object.fromEntries(listings.map((l) => [l.id, listingTitle(l)]));
+  const now = today();
   const { data: noteRows } = await supabase
     .from("notes")
-    .select("id, author_id, body, created_at, updated_at")
+    .select("id, author_id, body, created_at, updated_at, listing_id")
     .eq("household_id", m.household.id)
     .eq("vehicle_id", id)
     .order("created_at", { ascending: true });
   const names = Object.fromEntries(members.map((x) => [x.user_id, x.display_name]));
-  const notes: Note[] = (noteRows ?? []).map((n) => ({ ...n, author: names[n.author_id] ?? "Former member" }));
+  const notes: Note[] = (noteRows ?? []).map((n) => ({
+    ...n,
+    author: names[n.author_id] ?? "Former member",
+    listing: n.listing_id ? { id: n.listing_id, title: listingNames[n.listing_id] ?? "a listing" } : null,
+  }));
 
   const fit = garageFit(prefs, v);
   const match = matchFeatures(v, wishlist);
@@ -64,7 +73,7 @@ export default async function CarPage({ params }: PageProps<"/cars/[id]">) {
   return (
     <>
       <AppHeader membership={m} />
-      <LiveRefresh householdId={m.household.id} tables={["notes", "scores", "shortlist", "preferences", "wishlist_items"]} />
+      <LiveRefresh householdId={m.household.id} tables={["notes", "scores", "shortlist", "preferences", "wishlist_items", "listings"]} />
       <main className="mx-auto w-full max-w-5xl flex-1 space-y-4 px-4 py-6">
         <Link href="/compare" className="text-sm font-medium text-accent hover:underline">
           ← Compare
@@ -302,6 +311,39 @@ export default async function CarPage({ params }: PageProps<"/cars/[id]">) {
             </section>
           )}
         </div>
+
+        {!isCurrent && (
+          <section className="card space-y-3">
+            <div className="flex items-center justify-between gap-2">
+              <h2 className="font-semibold">For sale</h2>
+              <Link href={`/listings?add=${v.id}`} className="text-sm font-medium text-accent hover:underline">
+                + Add a listing
+              </Link>
+            </div>
+            {listings.length === 0 ? (
+              <p className="text-sm text-muted">No listings for this car yet. Paste one when you find it.</p>
+            ) : (
+              <ul className="divide-y divide-border">
+                {listings.map((l) => (
+                  <li key={l.id}>
+                    <Link href={`/listings/${l.id}`} className="flex flex-wrap items-center justify-between gap-2 py-2 hover:text-accent">
+                      <span className="min-w-0">
+                        <span className="font-medium">{listingTitle(l)}</span>
+                        <span className="block text-xs text-muted">
+                          {[l.asking_price != null ? usd(l.asking_price) : null, l.miles != null ? `${l.miles.toLocaleString()} mi` : null, l.dealer].filter(Boolean).join(" · ")}
+                        </span>
+                      </span>
+                      <span className="flex items-center gap-1">
+                        {l.follow_up_on && l.status !== "passed" && <FollowUpBadge date={l.follow_up_on} today={now} />}
+                        <ListingStatusChip status={l.status} />
+                      </span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+        )}
 
         <NotesThread vehicleId={v.id} notes={notes} myId={m.userId} />
       </main>

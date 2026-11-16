@@ -54,12 +54,14 @@ export type FeatureMatch = {
   statuses: Record<string, FeatureStatus>;
 };
 
-/** How a car stacks up against the household's must-haves and nice-to-haves. */
-export function matchFeatures(v: Specs, items: WishItem[]): FeatureMatch {
+/** How a car (or, with `checks`, one listing of it) stacks up against the household's must-haves and nice-to-haves. */
+export function matchFeatures(v: Specs, items: WishItem[], checks: Record<string, boolean> = {}): FeatureMatch {
   const statuses: Record<string, FeatureStatus> = {};
   const must = items.filter((i) => i.tier === "must_have");
   const nice = items.filter((i) => i.tier === "nice_to_have");
-  for (const i of [...must, ...nice]) statuses[i.id] = featureStatus(v, i.feature_key);
+  // A tick on a specific car for sale beats what the model's specs say.
+  for (const i of [...must, ...nice])
+    statuses[i.id] = i.id in checks ? (checks[i.id] ? "yes" : "no") : featureStatus(v, i.feature_key);
   return {
     missingMust: must.filter((i) => statuses[i.id] === "no"),
     mustToCheck: must.filter((i) => statuses[i.id] === "trim"),

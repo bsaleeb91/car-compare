@@ -5,32 +5,41 @@ import { createClient } from "@/lib/supabase/server";
 import { requireMembership } from "@/lib/session";
 import { getComparison } from "@/lib/data";
 import { LiveRefresh } from "@/components/LiveRefresh";
+import { getListings, listingTitle, today } from "@/lib/listings";
+import { daysUntil } from "@/lib/calc";
+import { FollowUpBadge } from "@/app/listings/bits";
 
 const tiles = [
   { href: "/compare", title: "Compare", text: "Every spec side by side, with garage fit, payments and fuel.", cls: "bg-accent-soft text-accent", icon: "⇆" },
   { href: "/scores", title: "Scores", text: "Rate each car 1–5 on what matters to your family.", cls: "bg-amber-soft text-amber", icon: "★" },
+  { href: "/listings", title: "Listings", text: "Cars for sale, dealer contacts, quotes and follow-ups.", cls: "bg-coral-soft text-coral", icon: "🏷" },
   { href: "/preferences", title: "Preferences", text: "Budget, financing, garage size and priority weights.", cls: "bg-teal-soft text-teal", icon: "⚙" },
 ];
 const upcoming = [
   { title: "Recommend", text: "Ask Claude for a shortlist that fits your household." },
   { title: "Test drive", text: "One-handed scorecards for each of you." },
-  { title: "Listings & dealers", text: "Track cars for sale, quotes and follow-ups." },
 ];
 
 export default async function HomePage() {
   const m = await requireMembership();
   const supabase = await createClient();
-  const [{ count }, { ranked }] = await Promise.all([
+  const [{ count }, { ranked }, listings] = await Promise.all([
     supabase.from("household_members").select("user_id", { count: "exact", head: true }).eq("household_id", m.household.id),
     getComparison(m.household.id),
+    getListings(m.household.id),
   ]);
+  const now = today();
+  // Due today, overdue, or tomorrow; passed listings don't need chasing.
+  const due = listings
+    .filter((l) => l.status !== "passed" && l.follow_up_on && daysUntil(l.follow_up_on, now) <= 1)
+    .sort((a, b) => a.follow_up_on!.localeCompare(b.follow_up_on!));
   const top = [...ranked].filter((r) => r.rank != null).sort((a, b) => a.rank! - b.rank!).slice(0, 3);
   const medal = ["bg-amber text-white", "bg-[#94a3b8] text-white", "bg-[#c2763a] text-white"];
 
   return (
     <>
       <AppHeader membership={m} />
-      <LiveRefresh householdId={m.household.id} tables={["scores", "shortlist", "preferences"]} />
+      <LiveRefresh householdId={m.household.id} tables={["scores", "shortlist", "preferences", "listings"]} />
       <main className="mx-auto w-full max-w-5xl flex-1 space-y-5 px-4 py-6">
         <section className="hero relative overflow-hidden rounded-3xl p-6 shadow-xl shadow-accent/25">
           <div aria-hidden className="absolute -right-10 -top-16 size-56 rounded-full bg-white/10" />
@@ -45,6 +54,25 @@ export default async function HomePage() {
             Open the compare table →
           </Link>
         </section>
+
+        {due.length > 0 && (
+          <section className="card space-y-2 border-amber/40">
+            <h2 className="font-semibold">Follow-ups due</h2>
+            <ul className="divide-y divide-border">
+              {due.map((l) => (
+                <li key={l.id}>
+                  <Link href={`/listings/${l.id}`} className="flex flex-wrap items-center justify-between gap-2 py-2 hover:text-accent">
+                    <span className="font-medium">
+                      {listingTitle(l)}
+                      {l.dealer && <span className="font-normal text-muted"> · {l.dealer}</span>}
+                    </span>
+                    <FollowUpBadge date={l.follow_up_on!} today={now} />
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
 
         {top.length > 0 && (
           <section className="card">

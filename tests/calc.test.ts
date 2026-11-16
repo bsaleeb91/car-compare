@@ -101,3 +101,33 @@ describe("test drive", () => {
     expect(weightedScore(avg, { cargo: 100 }).score).toBe(5);
   });
 });
+
+describe("listings", () => {
+  const p = { down_payment: 10000, loan_months: 60, apr_used: 6.5, apr_cpo: 5.9, apr_new: 4.9, include_tax_fees: false, sales_tax_pct: 4.15, fees: 0 };
+  const l = { asking_price: 32500, condition: "used" as const, apr_override: null, down_override: null, term_override: null };
+
+  it("uses the default APR for the listing's condition, unless overridden", async () => {
+    const { listingTerms } = await import("@/lib/calc");
+    expect(listingTerms(l, p).apr).toBe(6.5);
+    expect(listingTerms({ ...l, condition: "cpo" }, p).apr).toBe(5.9);
+    expect(listingTerms({ ...l, condition: "new" }, p).apr).toBe(4.9);
+    expect(listingTerms({ ...l, apr_override: 2.9, term_override: 72, down_override: 5000 }, p)).toEqual({ apr: 2.9, down: 5000, months: 72 });
+  });
+
+  it("computes payment, total interest and total cost", async () => {
+    const { listingCost } = await import("@/lib/calc");
+    const c = listingCost(l, p)!;
+    expect(c.monthly).toBeCloseTo(440.24, 2);
+    expect(c.totalInterest).toBeCloseTo(440.24 * 60 - 22500, 0);
+    expect(c.totalCost).toBeCloseTo(440.24 * 60 + 10000, 0);
+    expect(listingCost({ ...l, asking_price: null }, p)).toBeNull();
+    // A down payment bigger than the price pays cash: no loan, total = price.
+    expect(listingCost({ ...l, asking_price: 8000 }, p)).toMatchObject({ monthly: 0, totalInterest: 0, totalCost: 8000 });
+  });
+
+  it("counts days to a follow-up", async () => {
+    const { daysUntil } = await import("@/lib/calc");
+    expect(daysUntil("2026-11-20", "2026-11-15")).toBe(5);
+    expect(daysUntil("2026-11-14", "2026-11-15")).toBe(-1);
+  });
+});

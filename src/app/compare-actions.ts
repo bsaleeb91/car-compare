@@ -61,19 +61,24 @@ export async function setShortlistAction(input: { vehicleId: string; removed: bo
 const noteBody = z.string().trim().min(1, "Write something first.").max(5000, "That note is too long.");
 
 /** Adds a note on a car (later also on a trim or listing). RLS checks membership and authorship. */
-export async function addNoteAction(input: { vehicleId: string; body: string }) {
+export async function addNoteAction(input: { vehicleId: string; listingId?: string; body: string }) {
   const m = await requireMembership();
-  const p = z.object({ vehicleId: z.uuid(), body: noteBody }).safeParse(input);
+  const p = z.object({ vehicleId: z.uuid(), listingId: z.uuid().optional(), body: noteBody }).safeParse(input);
   if (!p.success) return { error: p.error.issues[0]?.message ?? "Invalid note." };
   const supabase = await createClient();
-  const { error } = await supabase
-    .from("notes")
-    .insert({ household_id: m.household.id, vehicle_id: p.data.vehicleId, author_id: m.userId, body: p.data.body });
+  const { error } = await supabase.from("notes").insert({
+    household_id: m.household.id,
+    vehicle_id: p.data.vehicleId,
+    listing_id: p.data.listingId ?? null,
+    author_id: m.userId,
+    body: p.data.body,
+  });
   if (error) {
     console.error(error);
     return { error: "Couldn't save your note. Try again." };
   }
   revalidatePath(`/cars/${p.data.vehicleId}`);
+  if (p.data.listingId) revalidatePath(`/listings/${p.data.listingId}`);
   return { ok: true };
 }
 
@@ -87,9 +92,10 @@ export async function editNoteAction(input: { id: string; body: string }) {
     .update({ body: p.data.body })
     .eq("id", p.data.id)
     .eq("author_id", m.userId)
-    .select("vehicle_id");
+    .select("vehicle_id, listing_id");
   if (error || !data?.length) return { error: "Couldn't update that note." };
   revalidatePath(`/cars/${data[0].vehicle_id}`);
+  if (data[0].listing_id) revalidatePath(`/listings/${data[0].listing_id}`);
   return { ok: true };
 }
 
@@ -97,9 +103,10 @@ export async function deleteNoteAction(input: { id: string }) {
   const m = await requireMembership();
   const id = z.uuid().parse(input.id);
   const supabase = await createClient();
-  const { data, error } = await supabase.from("notes").delete().eq("id", id).eq("author_id", m.userId).select("vehicle_id");
+  const { data, error } = await supabase.from("notes").delete().eq("id", id).eq("author_id", m.userId).select("vehicle_id, listing_id");
   if (error || !data?.length) return { error: "Couldn't delete that note." };
   revalidatePath(`/cars/${data[0].vehicle_id}`);
+  if (data[0].listing_id) revalidatePath(`/listings/${data[0].listing_id}`);
   return { ok: true };
 }
 

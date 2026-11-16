@@ -2,14 +2,34 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { addNoteAction, deleteNoteAction, editNoteAction } from "@/app/compare-actions";
 
-export type Note = { id: string; author_id: string; author: string; body: string; created_at: string; updated_at: string };
+export type Note = {
+  id: string;
+  author_id: string;
+  author: string;
+  body: string;
+  created_at: string;
+  updated_at: string;
+  /** Set on a car page for notes written on one of its listings. */
+  listing?: { id: string; title: string } | null;
+};
 
 const when = (iso: string) =>
   new Date(iso).toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
 
-export function NotesThread({ vehicleId, notes, myId }: { vehicleId: string; notes: Note[]; myId: string }) {
+export function NotesThread({
+  vehicleId,
+  listingId,
+  notes,
+  myId,
+}: {
+  vehicleId: string;
+  listingId?: string;
+  notes: Note[];
+  myId: string;
+}) {
   const [body, setBody] = useState("");
   const [editing, setEditing] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
@@ -47,6 +67,14 @@ export function NotesThread({ vehicleId, notes, myId }: { vehicleId: string; not
                   <span>
                     <span className="font-semibold text-foreground">{mine ? "You" : n.author}</span> · {when(n.created_at)}
                     {n.updated_at !== n.created_at && " · edited"}
+                    {n.listing && (
+                      <>
+                        {" · on "}
+                        <Link href={`/listings/${n.listing.id}`} className="underline">
+                          {n.listing.title}
+                        </Link>
+                      </>
+                    )}
                   </span>
                   {mine && editing !== n.id && (
                     <span className="flex gap-1">
@@ -101,7 +129,7 @@ export function NotesThread({ vehicleId, notes, myId }: { vehicleId: string; not
         className="space-y-2"
         onSubmit={(e) => {
           e.preventDefault();
-          run(() => addNoteAction({ vehicleId, body }), () => setBody(""));
+          run(() => addNoteAction({ vehicleId, listingId, body }), () => setBody(""));
         }}
       >
         <label htmlFor="new-note" className="sr-only">

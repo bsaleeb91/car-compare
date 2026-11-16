@@ -164,3 +164,38 @@ export function bestIndexes(values: (number | null)[], better: "high" | "low"): 
 
 const round1 = (n: number) => Math.round(n * 10) / 10;
 const round2 = (n: number) => Math.round(n * 100) / 100;
+
+export type ListingTerms = {
+  asking_price: number | null;
+  condition: "new" | "used" | "cpo";
+  apr_override: number | null;
+  down_override: number | null;
+  term_override: number | null;
+};
+export type DefaultTerms = Financing & { apr_new: number; apr_cpo: number };
+
+/** The APR, down payment and term a listing uses: its own overrides, else the household's defaults for its condition. */
+export function listingTerms(l: ListingTerms, p: DefaultTerms) {
+  const condApr = l.condition === "new" ? p.apr_new : l.condition === "cpo" ? p.apr_cpo : p.apr_used;
+  return {
+    apr: l.apr_override ?? condApr,
+    down: l.down_override ?? p.down_payment,
+    months: l.term_override ?? p.loan_months,
+  };
+}
+
+/** Monthly payment, total interest and total cost for a listing, or null without an asking price. */
+export function listingCost(l: ListingTerms, p: DefaultTerms) {
+  if (l.asking_price == null) return null;
+  const t = listingTerms(l, p);
+  const outTheDoor = amountFinanced(l.asking_price, { ...p, down_payment: 0 });
+  const principal = Math.max(0, outTheDoor - t.down);
+  const monthly = monthlyPayment(principal, t.apr, t.months);
+  const totalPaid = monthly * t.months;
+  return { ...t, principal, monthly, totalInterest: totalPaid - principal, totalCost: totalPaid + Math.min(t.down, outTheDoor) };
+}
+
+/** Days from `today` until `date` (negative = overdue). Dates are YYYY-MM-DD in the household's local sense. */
+export function daysUntil(date: string, today: string): number {
+  return Math.round((Date.parse(`${date}T00:00:00Z`) - Date.parse(`${today}T00:00:00Z`)) / 86_400_000);
+}
