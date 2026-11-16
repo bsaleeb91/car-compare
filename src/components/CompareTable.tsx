@@ -2,6 +2,7 @@ import Link from "next/link";
 import { TypeChip, FitChip, ScoreBadge } from "@/components/chips";
 import { ShortlistButton } from "@/components/ShortlistButton";
 import type { Vehicle, Preferences } from "@/lib/data";
+import type { FeatureMatch } from "@/lib/features";
 import { amountFinanced, annualFuelCost, bestIndexes, garageFit, monthlyPayment } from "@/lib/calc";
 
 export type Column = {
@@ -11,6 +12,7 @@ export type Column = {
   rank: number | null;
   isCurrent: boolean;
   testDrive?: number | null;
+  match?: FeatureMatch;
 };
 
 type Cell = number | string | boolean | null;
@@ -18,7 +20,7 @@ type Row = {
   label: string;
   hint?: string;
   get: (v: Vehicle, p: Preferences, c: Column) => Cell;
-  fmt?: (x: Cell, v: Vehicle, p: Preferences) => React.ReactNode;
+  fmt?: (x: Cell, v: Vehicle, p: Preferences, c?: Column) => React.ReactNode;
   better?: "high" | "low";
 };
 type Group = { title: string; color: string; rows: Row[] };
@@ -29,7 +31,56 @@ const yesNo = (x: Cell) =>
   x == null ? "—" : x ? <span className="font-medium text-success">Yes</span> : <span className="text-muted">No</span>;
 const mid = (v: Vehicle) => (v.price_low != null && v.price_high != null ? (v.price_low + v.price_high) / 2 : (v.price_low ?? v.price_high));
 
+const names = (xs: { name: string }[]) => xs.map((x) => x.name).join(", ");
+
 const groups: Group[] = [
+  {
+    title: "Must-haves",
+    color: "bg-coral",
+    rows: [
+      {
+        label: "Must-haves",
+        hint: "From your Preferences",
+        get: (_v, _p, c) => (c.match ? c.match.missingMust.length : null),
+        fmt: (_x, _v, _p, c) => {
+          const mt = c?.match;
+          if (!mt || mt.mustTotal === 0)
+            return (
+              <Link href="/preferences#must-haves" className="text-xs font-medium text-accent hover:underline">
+                Pick must-haves
+              </Link>
+            );
+          if (mt.missingMust.length)
+            return <span className="font-semibold text-coral">Missing: {names(mt.missingMust)}</span>;
+          return (
+            <span>
+              <span className="font-semibold text-success">None missing</span>
+              {mt.mustToCheck.length > 0 && (
+                <span className="block text-xs text-muted" title={names(mt.mustToCheck)}>
+                  {mt.mustToCheck.length} to check on the trim
+                </span>
+              )}
+            </span>
+          );
+        },
+      },
+      {
+        label: "Nice-to-haves",
+        get: (_v, _p, c) => (c.match && c.match.niceTotal ? c.match.niceHave : null),
+        fmt: (_x, _v, _p, c) => {
+          const mt = c?.match;
+          if (!mt || mt.niceTotal === 0) return <span className="text-muted">—</span>;
+          return (
+            <span>
+              {mt.niceHave} of {mt.niceTotal}
+              {mt.niceToCheck > 0 && <span className="block text-xs font-normal text-muted">{mt.niceToCheck} to check on the trim</span>}
+            </span>
+          );
+        },
+        better: "high",
+      },
+    ],
+  },
   {
     title: "Test drive",
     color: "bg-success",
@@ -163,6 +214,11 @@ export function CompareTable({ prefs, cols }: { prefs: Preferences; cols: Column
                     <div className="mt-2">
                       <ScoreBadge score={c.score} complete={c.complete} />
                     </div>
+                    {c.match && c.match.missingMust.length > 0 && (
+                      <span className="chip mt-2 bg-coral-soft text-coral" title={names(c.match.missingMust)}>
+                        Missing a must-have
+                      </span>
+                    )}
                     <ShortlistButton vehicleId={c.vehicle.id} name={`${c.vehicle.make} ${c.vehicle.model}`} className="-ml-2 mt-1" />
                   </>
                 )}
@@ -198,7 +254,7 @@ export function CompareTable({ prefs, cols }: { prefs: Preferences; cols: Column
                         best.has(i) ? "bg-best font-semibold text-best-foreground" : c.isCurrent ? "bg-surface-2/60 text-muted" : "group-hover:bg-surface-2/50"
                       }`}
                     >
-                      {row.fmt ? row.fmt(values[i], c.vehicle, prefs) : String(values[i] ?? "—")}
+                      {row.fmt ? row.fmt(values[i], c.vehicle, prefs, c) : String(values[i] ?? "—")}
                     </td>
                   ))}
                 </tr>

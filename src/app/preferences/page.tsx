@@ -1,13 +1,14 @@
 import { AppHeader } from "@/components/AppHeader";
 import { requireMembership } from "@/lib/session";
-import { getPreferences } from "@/lib/data";
+import { getPreferences, getWishlist } from "@/lib/data";
+import { WishlistEditor } from "./WishlistEditor";
 import { PreferencesForm } from "./PreferencesForm";
 
 export const metadata = { title: "Preferences · Car Compare" };
 
 export default async function PreferencesPage() {
   const m = await requireMembership();
-  const prefs = await getPreferences(m.household.id);
+  const [prefs, wishlist] = await Promise.all([getPreferences(m.household.id), getWishlist(m.household.id)]);
   return (
     <>
       <AppHeader membership={m} />
@@ -17,6 +18,7 @@ export default async function PreferencesPage() {
           <p className="text-sm text-muted">Shared by everyone in {m.household.name}. These drive the compare table.</p>
         </div>
         <PreferencesForm prefs={prefs} />
+        <WishlistEditor items={wishlist} />
       </main>
     </>
   );

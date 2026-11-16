@@ -1,4 +1,5 @@
 import "server-only";
+import type { WishItem } from "@/lib/features";
 import { createClient } from "@/lib/supabase/server";
 import { TEST_DRIVE_KEYS, averageScores, meanOf, rank, weightedScore, type ScoreRow, type Weights } from "@/lib/calc";
 
@@ -30,6 +31,7 @@ export type Vehicle = {
   price_high: number | null;
   reliability_note: string | null;
   budget_years: string | null;
+  latch_positions: number | null;
   nhtsa_rollover_stars: number | null;
   nhtsa_overall_stars: number | null;
   specs_verified: boolean;
@@ -66,7 +68,7 @@ function nums<T extends Record<string, unknown>>(row: T, keys: string[]): T {
 const VEHICLE_NUMS = [
   "seats", "length_in", "width_in", "height_in", "wheelbase_in", "ground_clearance_in", "cargo_3rd", "cargo_2nd",
   "cargo_max", "third_row_legroom_in", "hp", "mpg_combined", "towing_lbs", "price_low", "price_high",
-  "nhtsa_rollover_stars", "nhtsa_overall_stars",
+  "nhtsa_rollover_stars", "nhtsa_overall_stars", "latch_positions",
 ];
 const PREF_NUMS = [
   "budget_min", "budget_max", "down_payment", "loan_months", "apr_new", "apr_cpo", "apr_used", "sales_tax_pct", "fees",
@@ -78,6 +80,19 @@ export async function getPreferences(householdId: string): Promise<Preferences> 
   const { data, error } = await supabase.from("preferences").select("*").eq("household_id", householdId).single();
   if (error) throw error;
   return nums(data as Preferences, PREF_NUMS);
+}
+
+/** The household's feature wishlist, in display order. */
+export async function getWishlist(householdId: string): Promise<WishItem[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("wishlist_items")
+    .select("id, name, category, tier, feature_key, catalog_key")
+    .eq("household_id", householdId)
+    .order("sort_order")
+    .order("created_at");
+  if (error) throw error;
+  return (data ?? []) as WishItem[];
 }
 
 export type Ranked = {
@@ -97,13 +112,14 @@ export type Ranked = {
 export async function getComparison(householdId: string) {
   const supabase = await createClient();
   const prefs = await getPreferences(householdId);
-  const [shortlist, scores, members] = await Promise.all([
+  const [shortlist, scores, members, wishlist] = await Promise.all([
     supabase
       .from("shortlist")
       .select("status, vehicles(*)")
       .eq("household_id", householdId),
     supabase.from("scores").select("vehicle_id, user_id, criterion, score").eq("household_id", householdId),
     supabase.from("household_members").select("user_id, display_name").eq("household_id", householdId).order("joined_at"),
+    getWishlist(householdId),
   ]);
   for (const r of [shortlist, scores, members]) if (r.error) throw r.error;
 
@@ -131,7 +147,7 @@ export async function getComparison(householdId: string) {
   const ranks = rank(results.map((r) => r.score));
   const ranked: Ranked[] = results.map((r, i) => ({ ...r, rank: ranks[i] }));
 
-  return { prefs, vehicles, removed, current, scoreRows, ranked, members: members.data ?? [] };
+  return { prefs, vehicles, removed, current, scoreRows, ranked, members: members.data ?? [], wishlist };
 }
 
 export const vehicleName = (v: Pick<Vehicle, "make" | "model">) => `${v.make} ${v.model}`;

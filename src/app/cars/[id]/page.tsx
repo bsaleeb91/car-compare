@@ -10,12 +10,13 @@ import { createClient } from "@/lib/supabase/server";
 import { getComparison } from "@/lib/data";
 import { CRITERIA, TEST_DRIVE, amountFinanced, annualFuelCost, garageFit, monthlyPayment } from "@/lib/calc";
 import { NotesThread, type Note } from "./NotesThread";
+import { matchFeatures, type FeatureStatus } from "@/lib/features";
 
 export default async function CarPage({ params }: PageProps<"/cars/[id]">) {
   const { id } = await params;
   if (!/^[0-9a-f-]{36}$/.test(id)) notFound();
   const m = await requireMembership();
-  const { prefs, ranked, removed, current, scoreRows, members } = await getComparison(m.household.id);
+  const { prefs, ranked, removed, current, scoreRows, members, wishlist } = await getComparison(m.household.id);
 
   const r = ranked.find((x) => x.vehicle.id === id);
   const v = r?.vehicle ?? removed.find((x) => x.id === id) ?? (current?.id === id ? current : null);
@@ -34,6 +35,8 @@ export default async function CarPage({ params }: PageProps<"/cars/[id]">) {
   const notes: Note[] = (noteRows ?? []).map((n) => ({ ...n, author: names[n.author_id] ?? "Former member" }));
 
   const fit = garageFit(prefs, v);
+  const match = matchFeatures(v, wishlist);
+  const wanted = wishlist.filter((w) => w.tier !== "dont_care");
   const pay = (price: number | null) =>
     price == null ? null : monthlyPayment(amountFinanced(price, prefs), prefs.apr_used, prefs.loan_months);
   const fuel = annualFuelCost(prefs.miles_per_year, v.mpg_combined, prefs.gas_price);
@@ -61,7 +64,7 @@ export default async function CarPage({ params }: PageProps<"/cars/[id]">) {
   return (
     <>
       <AppHeader membership={m} />
-      <LiveRefresh householdId={m.household.id} tables={["notes", "scores", "shortlist", "preferences"]} />
+      <LiveRefresh householdId={m.household.id} tables={["notes", "scores", "shortlist", "preferences", "wishlist_items"]} />
       <main className="mx-auto w-full max-w-5xl flex-1 space-y-4 px-4 py-6">
         <Link href="/compare" className="text-sm font-medium text-accent hover:underline">
           ← Compare
@@ -196,6 +199,56 @@ export default async function CarPage({ params }: PageProps<"/cars/[id]">) {
           </section>
         )}
 
+        <section className="card space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2 className="font-semibold">Your must-haves</h2>
+            <Link href="/preferences#must-haves" className="text-sm font-medium text-accent hover:underline">
+              Edit list
+            </Link>
+          </div>
+          {wanted.length === 0 ? (
+            <p className="text-sm text-muted">
+              You haven&apos;t picked any yet. Sort the feature list in{" "}
+              <Link href="/preferences#must-haves" className="underline">
+                Preferences
+              </Link>{" "}
+              to see what this car is missing.
+            </p>
+          ) : (
+            <>
+              {match.missingMust.length > 0 && (
+                <p className="rounded-xl bg-coral-soft p-3 text-sm font-medium text-coral">
+                  Missing must-have: {match.missingMust.map((x) => x.name).join(", ")}
+                </p>
+              )}
+              <div className="grid gap-4 sm:grid-cols-2">
+                {(["must_have", "nice_to_have"] as const).map((t) => {
+                  const list = wanted.filter((w) => w.tier === t);
+                  if (!list.length) return null;
+                  return (
+                    <div key={t}>
+                      <h3 className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted">
+                        {t === "must_have" ? "Must-have" : `Nice-to-have · ${match.niceHave} of ${match.niceTotal}`}
+                      </h3>
+                      <ul className="space-y-1 text-sm">
+                        {list.map((w) => (
+                          <li key={w.id} className="flex items-center justify-between gap-2">
+                            <span>{w.name}</span>
+                            <StatusChip status={match.statuses[w.id]} />
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  );
+                })}
+              </div>
+              {(match.mustToCheck.length > 0 || match.niceToCheck > 0) && (
+                <p className="text-xs text-muted">&quot;Check trim&quot; means it depends on the trim or the specific car for sale.</p>
+              )}
+            </>
+          )}
+        </section>
+
         <div className="grid gap-4 md:grid-cols-2">
           <section className="card">
             <h2 className="mb-2 font-semibold">Specs</h2>
@@ -254,6 +307,12 @@ export default async function CarPage({ params }: PageProps<"/cars/[id]">) {
       </main>
     </>
   );
+}
+
+function StatusChip({ status }: { status: FeatureStatus | undefined }) {
+  if (status === "yes") return <span className="chip bg-best text-best-foreground">✓ Available</span>;
+  if (status === "no") return <span className="chip bg-coral-soft text-coral">✕ No</span>;
+  return <span className="chip bg-surface-2 text-muted">Check trim</span>;
 }
 
 function Row({ label, value, min }: { label: string; value: number | null; min: number }) {

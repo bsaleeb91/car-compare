@@ -6,6 +6,7 @@ import { CRITERIA, TEST_DRIVE_KEYS } from "@/lib/calc";
 import { createClient } from "@/lib/supabase/server";
 import { requireMembership } from "@/lib/session";
 import type { ActionState } from "@/app/actions";
+import type { WishItem } from "@/lib/features";
 
 const criterion = z.enum([...CRITERIA.map((c) => c.key), ...TEST_DRIVE_KEYS] as [string, ...string[]]);
 
@@ -99,6 +100,62 @@ export async function deleteNoteAction(input: { id: string }) {
   const { data, error } = await supabase.from("notes").delete().eq("id", id).eq("author_id", m.userId).select("vehicle_id");
   if (error || !data?.length) return { error: "Couldn't delete that note." };
   revalidatePath(`/cars/${data[0].vehicle_id}`);
+  return { ok: true };
+}
+
+const tier = z.enum(["must_have", "nice_to_have", "dont_care"]);
+
+/** Moves a wishlist item between must-have, nice-to-have and don't care. */
+export async function setTierAction(input: { id: string; tier: string }) {
+  const m = await requireMembership();
+  const p = z.object({ id: z.uuid(), tier }).parse(input);
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("wishlist_items")
+    .update({ tier: p.tier })
+    .eq("id", p.id)
+    .eq("household_id", m.household.id)
+    .select("id");
+  if (error || !data?.length) return { error: "Couldn't save that. Try again." };
+  revalidatePath("/", "layout");
+  return { ok: true };
+}
+
+/** Adds a feature that isn't in the preloaded list. It can't be read from specs, so it's checked by hand. */
+export async function addCustomFeatureAction(input: { name: string; tier: string }) {
+  const m = await requireMembership();
+  const p = z
+    .object({ name: z.string().trim().min(1, "Name the feature.").max(80, "Keep it under 80 characters."), tier })
+    .safeParse(input);
+  if (!p.success) return { error: p.error.issues[0]?.message ?? "Invalid feature." };
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("wishlist_items")
+    .insert({ household_id: m.household.id, name: p.data.name, tier: p.data.tier, category: "Custom", sort_order: 10000 })
+    .select("id, name, category, tier, feature_key, catalog_key")
+    .single();
+  if (error) {
+    console.error(error);
+    return { error: "Couldn't add that feature." };
+  }
+  revalidatePath("/", "layout");
+  return { ok: true, item: data as WishItem };
+}
+
+/** Deletes a custom feature. Preloaded ones can only be set to "don't care". */
+export async function deleteCustomFeatureAction(input: { id: string }) {
+  const m = await requireMembership();
+  const id = z.uuid().parse(input.id);
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("wishlist_items")
+    .delete()
+    .eq("id", id)
+    .eq("household_id", m.household.id)
+    .is("catalog_key", null)
+    .select("id");
+  if (error || !data?.length) return { error: "Couldn't delete that feature." };
+  revalidatePath("/", "layout");
   return { ok: true };
 }
 

@@ -3,6 +3,7 @@ import { AppHeader } from "@/components/AppHeader";
 import { CompareTable, usd } from "@/components/CompareTable";
 import { requireMembership } from "@/lib/session";
 import { getComparison } from "@/lib/data";
+import { matchFeatures } from "@/lib/features";
 import { RemovedList } from "@/components/RemovedList";
 import { LiveRefresh } from "@/components/LiveRefresh";
 
@@ -10,15 +11,15 @@ export const metadata = { title: "Compare · Car Compare" };
 
 export default async function ComparePage() {
   const m = await requireMembership();
-  const { prefs, ranked, current, removed } = await getComparison(m.household.id);
+  const { prefs, ranked, current, removed, wishlist } = await getComparison(m.household.id);
   const order = [...ranked].sort((a, b) => (a.rank ?? 99) - (b.rank ?? 99));
-  const cols = [...order.map((r) => ({ ...r, isCurrent: false })), ...(current ? [{ vehicle: current, score: null, complete: false, rank: null, avg: {}, isCurrent: true }] : [])];
+  const cols = [...order.map((r) => ({ ...r, isCurrent: false, match: matchFeatures(r.vehicle, wishlist) })), ...(current ? [{ vehicle: current, score: null, complete: false, rank: null, avg: {}, isCurrent: true }] : [])];
   const noGarage = prefs.garage_depth_in == null;
 
   return (
     <>
       <AppHeader membership={m} />
-      <LiveRefresh householdId={m.household.id} tables={["scores", "shortlist", "preferences"]} />
+      <LiveRefresh householdId={m.household.id} tables={["scores", "shortlist", "preferences", "wishlist_items"]} />
       <main className="mx-auto w-full max-w-5xl flex-1 space-y-4 px-4 py-6">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
