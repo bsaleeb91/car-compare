@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { Vehicle } from "@/lib/data";
 import { TypeChip } from "@/components/chips";
 import { ShortlistButton } from "@/components/ShortlistButton";
@@ -15,9 +16,9 @@ export function RemovedList({ removed }: { removed: Vehicle[] }) {
           <li key={v.id} className="flex items-center justify-between gap-3 py-2">
             <span className="flex min-w-0 items-center gap-2">
               <TypeChip type={v.type} />
-              <span className="truncate">
+              <Link href={`/cars/${v.id}`} className="truncate hover:underline">
                 <span className="text-sm text-muted">{v.make}</span> <span className="font-medium">{v.model}</span>
-              </span>
+              </Link>
             </span>
             <ShortlistButton vehicleId={v.id} name={`${v.make} ${v.model}`} removed />
           </li>

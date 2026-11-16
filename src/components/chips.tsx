@@ -55,3 +55,12 @@ export function ScoreBadge({ score, complete }: { score: number | null; complete
     </span>
   );
 }
+
+/** Specs not yet confirmed against the window sticker or the maker's site. */
+export function UnverifiedBadge() {
+  return (
+    <span className="chip bg-amber-soft text-amber" title="Specs not yet confirmed: check the window sticker">
+      Unverified specs
+    </span>
+  );
+}

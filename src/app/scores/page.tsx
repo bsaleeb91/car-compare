@@ -3,6 +3,7 @@ import { requireMembership } from "@/lib/session";
 import { getComparison } from "@/lib/data";
 import { ScoreGrid } from "./ScoreGrid";
 import { RemovedList } from "@/components/RemovedList";
+import { LiveRefresh } from "@/components/LiveRefresh";
 
 export const metadata = { title: "Scores · Car Compare" };
 
@@ -18,6 +19,7 @@ export default async function ScoresPage() {
   return (
     <>
       <AppHeader membership={m} />
+      <LiveRefresh householdId={m.household.id} tables={["scores", "shortlist", "preferences"]} />
       <main className="mx-auto w-full max-w-5xl flex-1 space-y-4 px-4 py-6">
         <div>
           <h1 className="text-2xl font-bold">Scores</h1>

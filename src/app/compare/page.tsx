@@ -4,6 +4,7 @@ import { CompareTable, usd } from "@/components/CompareTable";
 import { requireMembership } from "@/lib/session";
 import { getComparison } from "@/lib/data";
 import { RemovedList } from "@/components/RemovedList";
+import { LiveRefresh } from "@/components/LiveRefresh";
 
 export const metadata = { title: "Compare · Car Compare" };
 
@@ -17,6 +18,7 @@ export default async function ComparePage() {
   return (
     <>
       <AppHeader membership={m} />
+      <LiveRefresh householdId={m.household.id} tables={["scores", "shortlist", "preferences"]} />
       <main className="mx-auto w-full max-w-5xl flex-1 space-y-4 px-4 py-6">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>

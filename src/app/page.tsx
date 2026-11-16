@@ -4,6 +4,7 @@ import { ScoreBadge, TypeChip } from "@/components/chips";
 import { createClient } from "@/lib/supabase/server";
 import { requireMembership } from "@/lib/session";
 import { getComparison } from "@/lib/data";
+import { LiveRefresh } from "@/components/LiveRefresh";
 
 const tiles = [
   { href: "/compare", title: "Compare", text: "Every spec side by side, with garage fit, payments and fuel.", cls: "bg-accent-soft text-accent", icon: "⇆" },
@@ -29,6 +30,7 @@ export default async function HomePage() {
   return (
     <>
       <AppHeader membership={m} />
+      <LiveRefresh householdId={m.household.id} tables={["scores", "shortlist", "preferences"]} />
       <main className="mx-auto w-full max-w-5xl flex-1 space-y-5 px-4 py-6">
         <section className="hero relative overflow-hidden rounded-3xl p-6 shadow-xl shadow-accent/25">
           <div aria-hidden className="absolute -right-10 -top-16 size-56 rounded-full bg-white/10" />
@@ -54,7 +56,8 @@ export default async function HomePage() {
             </div>
             <ol className="grid gap-3 sm:grid-cols-3">
               {top.map((r, i) => (
-                <li key={r.vehicle.id} className="rounded-2xl border border-border bg-surface-2/60 p-3">
+                <li key={r.vehicle.id}>
+                  <Link href={`/cars/${r.vehicle.id}`} className="block h-full rounded-2xl border border-border bg-surface-2/60 p-3 transition hover:border-accent/40 hover:bg-accent-soft">
                   <div className="flex items-center justify-between">
                     <span className={`grid size-7 place-items-center rounded-full text-sm font-bold ${medal[i] ?? "bg-surface text-muted"}`}>
                       {r.rank}
@@ -66,6 +69,7 @@ export default async function HomePage() {
                   <div className="mt-2">
                     <ScoreBadge score={r.score} complete={r.complete} />
                   </div>
+                  </Link>
                 </li>
               ))}
             </ol>

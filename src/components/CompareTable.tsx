@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { TypeChip, FitChip, ScoreBadge } from "@/components/chips";
 import { ShortlistButton } from "@/components/ShortlistButton";
 import type { Vehicle, Preferences } from "@/lib/data";
@@ -126,8 +127,10 @@ export function CompareTable({ prefs, cols }: { prefs: Preferences; cols: Column
                   )}
                   <TypeChip type={c.vehicle.type} />
                 </div>
-                <p className="mt-2 text-xs text-muted">{c.vehicle.make}</p>
-                <p className="text-base font-semibold leading-tight">{c.vehicle.model}</p>
+                <Link href={`/cars/${c.vehicle.id}`} className="group/name mt-2 block">
+                  <span className="block text-xs text-muted">{c.vehicle.make}</span>
+                  <span className="block text-base font-semibold leading-tight text-accent group-hover/name:underline">{c.vehicle.model}</span>
+                </Link>
                 {!c.isCurrent && (
                   <>
                     <div className="mt-2">

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import Link from "next/link";
 import { CRITERIA, weightedScore, type Weights } from "@/lib/calc";
 import { ScoreBadge, TypeChip, scoreClass } from "@/components/chips";
 import { setScoreAction } from "@/app/compare-actions";
@@ -63,7 +64,9 @@ export function ScoreGrid({
                     <TypeChip type={v.type} />
                   </div>
                   <h2 className="mt-1 text-lg font-semibold leading-tight">
-                    <span className="text-sm font-normal text-muted">{v.make}</span> {v.model}
+                    <Link href={`/cars/${v.id}`} className="hover:underline">
+                      <span className="text-sm font-normal text-muted">{v.make}</span> {v.model}
+                    </Link>
                   </h2>
                 </div>
                 <div className="flex w-28 shrink-0 flex-col items-end">

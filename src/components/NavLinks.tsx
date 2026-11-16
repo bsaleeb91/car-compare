@@ -17,7 +17,8 @@ export function NavLinks() {
     <nav className="mx-auto max-w-5xl overflow-x-auto px-2 [scrollbar-width:none]">
       <ul className="flex gap-1 py-2">
         {links.map((l) => {
-          const active = l.href === "/" ? path === "/" : path.startsWith(l.href);
+          // A car's own page belongs under Compare.
+          const active = l.href === "/" ? path === "/" : path.startsWith(l.href) || (l.href === "/compare" && path.startsWith("/cars/"));
           return (
             <li key={l.href}>
               <Link

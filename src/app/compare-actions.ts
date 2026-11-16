@@ -56,6 +56,51 @@ export async function setShortlistAction(input: { vehicleId: string; removed: bo
   return { ok: true };
 }
 
+const noteBody = z.string().trim().min(1, "Write something first.").max(5000, "That note is too long.");
+
+/** Adds a note on a car (later also on a trim or listing). RLS checks membership and authorship. */
+export async function addNoteAction(input: { vehicleId: string; body: string }) {
+  const m = await requireMembership();
+  const p = z.object({ vehicleId: z.uuid(), body: noteBody }).safeParse(input);
+  if (!p.success) return { error: p.error.issues[0]?.message ?? "Invalid note." };
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("notes")
+    .insert({ household_id: m.household.id, vehicle_id: p.data.vehicleId, author_id: m.userId, body: p.data.body });
+  if (error) {
+    console.error(error);
+    return { error: "Couldn't save your note. Try again." };
+  }
+  revalidatePath(`/cars/${p.data.vehicleId}`);
+  return { ok: true };
+}
+
+export async function editNoteAction(input: { id: string; body: string }) {
+  const m = await requireMembership();
+  const p = z.object({ id: z.uuid(), body: noteBody }).safeParse(input);
+  if (!p.success) return { error: p.error.issues[0]?.message ?? "Invalid note." };
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("notes")
+    .update({ body: p.data.body })
+    .eq("id", p.data.id)
+    .eq("author_id", m.userId)
+    .select("vehicle_id");
+  if (error || !data?.length) return { error: "Couldn't update that note." };
+  revalidatePath(`/cars/${data[0].vehicle_id}`);
+  return { ok: true };
+}
+
+export async function deleteNoteAction(input: { id: string }) {
+  const m = await requireMembership();
+  const id = z.uuid().parse(input.id);
+  const supabase = await createClient();
+  const { data, error } = await supabase.from("notes").delete().eq("id", id).eq("author_id", m.userId).select("vehicle_id");
+  if (error || !data?.length) return { error: "Couldn't delete that note." };
+  revalidatePath(`/cars/${data[0].vehicle_id}`);
+  return { ok: true };
+}
+
 const money = z.coerce.number().min(0).max(10_000_000);
 const optInches = z.preprocess((v) => (v === "" || v == null ? null : v), z.coerce.number().min(1).max(2000).nullable());
 
