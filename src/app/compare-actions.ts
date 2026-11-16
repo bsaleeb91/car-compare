@@ -2,12 +2,12 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { CRITERIA } from "@/lib/calc";
+import { CRITERIA, TEST_DRIVE_KEYS } from "@/lib/calc";
 import { createClient } from "@/lib/supabase/server";
 import { requireMembership } from "@/lib/session";
 import type { ActionState } from "@/app/actions";
 
-const criterion = z.enum(CRITERIA.map((c) => c.key) as [string, ...string[]]);
+const criterion = z.enum([...CRITERIA.map((c) => c.key), ...TEST_DRIVE_KEYS] as [string, ...string[]]);
 
 /** Sets (or, with score null, clears) the signed-in member's own score. RLS enforces ownership. */
 export async function setScoreAction(input: { vehicleId: string; criterion: string; score: number | null }) {
@@ -34,6 +34,7 @@ export async function setScoreAction(input: { vehicleId: string; criterion: stri
   }
   revalidatePath("/compare");
   revalidatePath("/");
+  revalidatePath(`/cars/${p.vehicleId}`);
   return { ok: true };
 }
 

@@ -83,3 +83,21 @@ describe("scores", () => {
     expect(bestIndexes([2, 2], "high")).toEqual([]);
   });
 });
+
+describe("test drive", () => {
+  it("has unique td_ keys that never collide with weighted criteria", async () => {
+    const { TEST_DRIVE_KEYS, CRITERIA } = await import("@/lib/calc");
+    expect(new Set(TEST_DRIVE_KEYS).size).toBe(TEST_DRIVE_KEYS.length);
+    expect(TEST_DRIVE_KEYS.every((k) => k.startsWith("td_"))).toBe(true);
+    expect(CRITERIA.some((c) => TEST_DRIVE_KEYS.includes(c.key))).toBe(false);
+  });
+
+  it("averages only scored test-drive items and ignores weighted ones", async () => {
+    const { meanOf, TEST_DRIVE_KEYS, weightedScore } = await import("@/lib/calc");
+    const avg = { td_verdict: 4, td_braking: 3, cargo: 5 };
+    expect(meanOf(avg, TEST_DRIVE_KEYS)).toBe(3.5);
+    expect(meanOf({}, TEST_DRIVE_KEYS)).toBeNull();
+    // td_ scores don't change the weighted score
+    expect(weightedScore(avg, { cargo: 100 }).score).toBe(5);
+  });
+});

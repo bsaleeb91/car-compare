@@ -1,6 +1,6 @@
 import "server-only";
 import { createClient } from "@/lib/supabase/server";
-import { averageScores, rank, weightedScore, type ScoreRow, type Weights } from "@/lib/calc";
+import { TEST_DRIVE_KEYS, averageScores, meanOf, rank, weightedScore, type ScoreRow, type Weights } from "@/lib/calc";
 
 export type Vehicle = {
   id: string;
@@ -30,6 +30,8 @@ export type Vehicle = {
   price_high: number | null;
   reliability_note: string | null;
   budget_years: string | null;
+  nhtsa_rollover_stars: number | null;
+  nhtsa_overall_stars: number | null;
   specs_verified: boolean;
 };
 
@@ -64,6 +66,7 @@ function nums<T extends Record<string, unknown>>(row: T, keys: string[]): T {
 const VEHICLE_NUMS = [
   "seats", "length_in", "width_in", "height_in", "wheelbase_in", "ground_clearance_in", "cargo_3rd", "cargo_2nd",
   "cargo_max", "third_row_legroom_in", "hp", "mpg_combined", "towing_lbs", "price_low", "price_high",
+  "nhtsa_rollover_stars", "nhtsa_overall_stars",
 ];
 const PREF_NUMS = [
   "budget_min", "budget_max", "down_payment", "loan_months", "apr_new", "apr_cpo", "apr_used", "sales_tax_pct", "fees",
@@ -77,7 +80,15 @@ export async function getPreferences(householdId: string): Promise<Preferences> 
   return nums(data as Preferences, PREF_NUMS);
 }
 
-export type Ranked = { vehicle: Vehicle; avg: Partial<Record<string, number>>; score: number | null; complete: boolean; rank: number | null };
+export type Ranked = {
+  vehicle: Vehicle;
+  avg: Partial<Record<string, number>>;
+  score: number | null;
+  complete: boolean;
+  rank: number | null;
+  /** Mean test-drive score across members and scorecard items, or null before any test drive. */
+  testDrive: number | null;
+};
 
 /**
  * Everything the compare and scores pages need: preferences, the household's shortlisted
@@ -115,7 +126,7 @@ export async function getComparison(householdId: string) {
   const scoreRows = (scores.data ?? []) as ScoreRow[];
   const results = vehicles.map((vehicle) => {
     const avg = averageScores(scoreRows, vehicle.id);
-    return { vehicle, avg, ...weightedScore(avg, prefs.weights) };
+    return { vehicle, avg, ...weightedScore(avg, prefs.weights), testDrive: meanOf(avg, TEST_DRIVE_KEYS) };
   });
   const ranks = rank(results.map((r) => r.score));
   const ranked: Ranked[] = results.map((r, i) => ({ ...r, rank: ranks[i] }));

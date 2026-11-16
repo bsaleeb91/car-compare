@@ -4,13 +4,20 @@ import { ShortlistButton } from "@/components/ShortlistButton";
 import type { Vehicle, Preferences } from "@/lib/data";
 import { amountFinanced, annualFuelCost, bestIndexes, garageFit, monthlyPayment } from "@/lib/calc";
 
-export type Column = { vehicle: Vehicle; score: number | null; complete: boolean; rank: number | null; isCurrent: boolean };
+export type Column = {
+  vehicle: Vehicle;
+  score: number | null;
+  complete: boolean;
+  rank: number | null;
+  isCurrent: boolean;
+  testDrive?: number | null;
+};
 
 type Cell = number | string | boolean | null;
 type Row = {
   label: string;
   hint?: string;
-  get: (v: Vehicle, p: Preferences) => Cell;
+  get: (v: Vehicle, p: Preferences, c: Column) => Cell;
   fmt?: (x: Cell, v: Vehicle, p: Preferences) => React.ReactNode;
   better?: "high" | "low";
 };
@@ -23,6 +30,26 @@ const yesNo = (x: Cell) =>
 const mid = (v: Vehicle) => (v.price_low != null && v.price_high != null ? (v.price_low + v.price_high) / 2 : (v.price_low ?? v.price_high));
 
 const groups: Group[] = [
+  {
+    title: "Test drive",
+    color: "bg-success",
+    rows: [
+      {
+        label: "Test-drive average",
+        hint: "Everyone's scorecards, out of 5",
+        get: (_v, _p, c) => (c.isCurrent ? null : (c.testDrive ?? null)),
+        fmt: (x, v) =>
+          x == null ? (
+            <Link href={`/cars/${v.id}/test-drive`} className="text-xs font-medium text-accent hover:underline">
+              Not driven yet
+            </Link>
+          ) : (
+            `${Number(x).toFixed(1)} / 5`
+          ),
+        better: "high",
+      },
+    ],
+  },
   {
     title: "Space",
     color: "bg-accent",
@@ -154,7 +181,7 @@ export function CompareTable({ prefs, cols }: { prefs: Preferences; cols: Column
               </th>
             </tr>
             {g.rows.map((row) => {
-              const values = cols.map((c) => row.get(c.vehicle, prefs));
+              const values = cols.map((c) => row.get(c.vehicle, prefs, c));
               // The current car is for reference: it never wins a row.
               const numeric = values.map((x, i) => (cols[i].isCurrent || typeof x !== "number" ? null : x));
               const best = new Set(row.better ? bestIndexes(numeric, row.better) : []);

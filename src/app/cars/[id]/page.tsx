@@ -8,7 +8,7 @@ import { usd } from "@/components/CompareTable";
 import { requireMembership } from "@/lib/session";
 import { createClient } from "@/lib/supabase/server";
 import { getComparison } from "@/lib/data";
-import { CRITERIA, amountFinanced, annualFuelCost, garageFit, monthlyPayment } from "@/lib/calc";
+import { CRITERIA, TEST_DRIVE, amountFinanced, annualFuelCost, garageFit, monthlyPayment } from "@/lib/calc";
 import { NotesThread, type Note } from "./NotesThread";
 
 export default async function CarPage({ params }: PageProps<"/cars/[id]">) {
@@ -138,6 +138,64 @@ export default async function CarPage({ params }: PageProps<"/cars/[id]">) {
           </section>
         </div>
 
+        {!isCurrent && (
+          <section className="card space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h2 className="font-semibold">Test drive</h2>
+                <p className="text-sm text-muted">
+                  {r?.testDrive != null
+                    ? `Average ${r.testDrive.toFixed(1)} / 5 across everyone's scorecards.`
+                    : "Nobody has driven it yet. Open the scorecard on your phone at the dealer."}
+                </p>
+              </div>
+              <Link href={`/cars/${v.id}/test-drive`} className="btn-primary">
+                {scoreRows.some((s) => s.vehicle_id === id && s.user_id === m.userId && s.criterion.startsWith("td_"))
+                  ? "Continue my scorecard"
+                  : "Start test drive"}
+              </Link>
+            </div>
+            {r?.testDrive != null && (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="text-left text-xs text-muted">
+                      <th className="py-1 font-medium" />
+                      {members.map((mem) => (
+                        <th key={mem.user_id} className="py-1 text-center font-medium">
+                          {mem.display_name.split(" ")[0]}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  {TEST_DRIVE.map((g) => (
+                    <tbody key={g.title} className="divide-y divide-border">
+                      <tr>
+                        <th colSpan={members.length + 1} className="pb-1 pt-3 text-left text-xs font-semibold uppercase tracking-wide text-muted">
+                          {g.title}
+                        </th>
+                      </tr>
+                      {g.items.map((item) => (
+                        <tr key={item.key}>
+                          <td className="py-1.5">{item.label}</td>
+                          {members.map((mem) => {
+                            const s = scoreRows.find((x) => x.vehicle_id === id && x.user_id === mem.user_id && x.criterion === item.key)?.score;
+                            return (
+                              <td key={mem.user_id} className="py-1 text-center">
+                                <span className={`inline-grid size-8 place-items-center rounded-lg font-semibold ${scoreClass(s)}`}>{s ?? "–"}</span>
+                              </td>
+                            );
+                          })}
+                        </tr>
+                      ))}
+                    </tbody>
+                  ))}
+                </table>
+              </div>
+            )}
+          </section>
+        )}
+
         <div className="grid gap-4 md:grid-cols-2">
           <section className="card">
             <h2 className="mb-2 font-semibold">Specs</h2>
@@ -154,7 +212,7 @@ export default async function CarPage({ params }: PageProps<"/cars/[id]">) {
           {!isCurrent && (
             <section className="card">
               <div className="mb-2 flex items-center justify-between">
-                <h2 className="font-semibold">Scores</h2>
+                <h2 className="font-semibold">Weighted scores</h2>
                 <Link href="/scores" className="text-sm font-medium text-accent hover:underline">
                   Edit
                 </Link>

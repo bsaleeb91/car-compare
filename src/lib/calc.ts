@@ -11,6 +11,44 @@ export const CRITERIA = [
 ] as const;
 
 export type CriterionKey = (typeof CRITERIA)[number]["key"];
+
+/**
+ * Test-drive scorecard. Stored in `scores` like the weighted criteria (keys prefixed `td_`),
+ * but kept out of the weighted score: it's what you felt, shown next to it.
+ */
+export const TEST_DRIVE = [
+  {
+    title: "The basics",
+    items: [
+      { key: "td_seat_install", label: "Car-seat install (2nd row)" },
+      { key: "td_third_row_access", label: "3rd-row access with car seats in" },
+      { key: "td_cargo", label: "Cargo with 3rd row up (stroller + luggage)" },
+      { key: "td_ride_noise", label: "Ride and noise on the highway" },
+      { key: "td_city", label: "Parking and city ease" },
+      { key: "td_infotainment", label: "Infotainment / CarPlay" },
+    ],
+  },
+  {
+    title: "Driving feel & handling",
+    items: [
+      { key: "td_stability", label: "Stability in lane changes", hint: "Planted, or tippy and leaning?" },
+      { key: "td_cornering", label: "Cornering confidence", hint: "A turn at normal speed" },
+      { key: "td_steering", label: "Steering feel", hint: "Precise vs vague; effort in parking lots" },
+      { key: "td_braking", label: "Braking confidence", hint: "Smooth, stops straight" },
+      { key: "td_visibility", label: "Visibility", hint: "Blind spots, over the hood, rear view" },
+      { key: "td_enjoyment", label: "Enjoyment", hint: "Easy and pleasant to drive?" },
+    ],
+  },
+  { title: "Overall", items: [{ key: "td_verdict", label: "Overall verdict" }] },
+] as const;
+
+export const TEST_DRIVE_KEYS: string[] = TEST_DRIVE.flatMap((g) => g.items.map((i) => i.key));
+
+/** Mean of the given criteria's (already member-averaged) scores, or null if none are scored. */
+export function meanOf(avg: Partial<Record<string, number>>, keys: string[]): number | null {
+  const vals = keys.map((k) => avg[k]).filter((x): x is number => x != null);
+  return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null;
+}
 export type Weights = Partial<Record<string, number>>;
 
 /** Standard amortized monthly payment. `aprPct` is a percent (6.5 = 6.5%). */

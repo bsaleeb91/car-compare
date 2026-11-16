@@ -24,7 +24,7 @@ export default async function ComparePage() {
           <div>
             <h1 className="text-2xl font-bold">Compare</h1>
             <p className="text-sm text-muted">
-              Ranked by your weighted score. <span className="chip bg-best text-best-foreground">Green</span> marks the best
+              Ranked by your weighted score. Click a car for details and its test drive. <span className="chip bg-best text-best-foreground">Green</span> marks the best
               in each row.
             </p>
           </div>
