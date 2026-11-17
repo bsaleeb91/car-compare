@@ -199,3 +199,13 @@ export function listingCost(l: ListingTerms, p: DefaultTerms) {
 export function daysUntil(date: string, today: string): number {
   return Math.round((Date.parse(`${date}T00:00:00Z`) - Date.parse(`${today}T00:00:00Z`)) / 86_400_000);
 }
+
+/** Where a used-price range sits against a budget: overlapping it is "in", entirely above is "over", entirely below is "under". */
+export function budgetFit(r: { price_low: number | null; price_high: number | null }, min: number, max: number): "in" | "over" | "under" | null {
+  if (r.price_low == null && r.price_high == null) return null;
+  const lo = r.price_low ?? r.price_high!;
+  const hi = r.price_high ?? r.price_low!;
+  if (lo > max) return "over";
+  if (hi < min) return "under";
+  return "in";
+}

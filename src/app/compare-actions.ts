@@ -212,3 +212,22 @@ export async function updatePreferencesAction(_: ActionState, form: FormData): P
   revalidatePath("/", "layout");
   return { ok: "Saved." };
 }
+
+/** Marks a trim as a target (or clears it). RLS requires household membership and that the trim is visible. */
+export async function setTrimTargetAction(input: { trimId: string; target: boolean }) {
+  const m = await requireMembership();
+  const p = z.object({ trimId: z.uuid(), target: z.boolean() }).parse(input);
+  const supabase = await createClient();
+  const { error } = p.target
+    ? await supabase
+        .from("trim_shortlist")
+        .upsert({ household_id: m.household.id, trim_id: p.trimId, status: "target" }, { onConflict: "household_id,trim_id" })
+    : await supabase.from("trim_shortlist").delete().eq("household_id", m.household.id).eq("trim_id", p.trimId);
+  if (error) {
+    console.error(error);
+    return { error: "Couldn't save that. Try again." };
+  }
+  revalidatePath("/compare");
+  revalidatePath("/");
+  return { ok: true };
+}

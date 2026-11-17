@@ -72,3 +72,15 @@ export function matchFeatures(v: Specs, items: WishItem[], checks: Record<string
     statuses,
   };
 }
+
+/**
+ * A trim's recorded features, keyed by feature_key, turned into the per-item ticks `matchFeatures`
+ * understands. A feature the trim doesn't record is left out, so the model-level specs still apply.
+ */
+export function trimChecks(features: Record<string, unknown> | null | undefined, items: WishItem[]): Record<string, boolean> {
+  const out: Record<string, boolean> = {};
+  if (!features) return out;
+  for (const i of items)
+    if (i.feature_key && typeof features[i.feature_key] === "boolean") out[i.id] = features[i.feature_key] as boolean;
+  return out;
+}

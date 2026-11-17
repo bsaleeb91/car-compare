@@ -48,3 +48,21 @@ describe("matchFeatures", () => {
     expect(m.statuses.ignored).toBeUndefined();
   });
 });
+
+import { trimChecks } from "@/lib/features";
+
+describe("trim features", () => {
+  const items = [item("sensors", "parking_sensors", "must_have"), item("cam", "rear_camera", "nice_to_have"), item("awd", "awd", "must_have")];
+
+  it("turns a trim's recorded booleans into per-item ticks and skips what it doesn't record", () => {
+    expect(trimChecks({ parking_sensors: true, rear_camera: false, leather: true }, items)).toEqual({ sensors: true, cam: false });
+    expect(trimChecks(null, items)).toEqual({});
+  });
+
+  it("lets a trim's record beat the model-level answer, and still falls back to the model for the rest", () => {
+    const m = matchFeatures(minivan, items, trimChecks({ parking_sensors: false }, items));
+    expect(m.statuses.sensors).toBe("no");
+    expect(m.missingMust.map((i) => i.id)).toEqual(expect.arrayContaining(["sensors", "awd"]));
+    expect(m.statuses.cam).toBe("trim");
+  });
+});

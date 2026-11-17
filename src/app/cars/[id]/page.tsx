@@ -8,9 +8,11 @@ import { usd } from "@/components/CompareTable";
 import { requireMembership } from "@/lib/session";
 import { createClient } from "@/lib/supabase/server";
 import { getComparison } from "@/lib/data";
-import { CRITERIA, TEST_DRIVE, amountFinanced, annualFuelCost, garageFit, monthlyPayment } from "@/lib/calc";
+import { CRITERIA, TEST_DRIVE, budgetFit, amountFinanced, annualFuelCost, garageFit, monthlyPayment } from "@/lib/calc";
 import { NotesThread, type Note } from "./NotesThread";
 import { matchFeatures, type FeatureStatus } from "@/lib/features";
+import { getTrims } from "@/lib/trims";
+import { TrimTargetButton } from "@/components/TrimTargetButton";
 import { getListings, listingTitle, today } from "@/lib/listings";
 import { StatusChip as ListingStatusChip, FollowUpBadge } from "@/app/listings/bits";
 
@@ -28,6 +30,7 @@ export default async function CarPage({ params }: PageProps<"/cars/[id]">) {
 
   const supabase = await createClient();
   const listings = await getListings(m.household.id, id);
+  const trims = await getTrims(m.household.id, [id]);
   const listingNames = Object.fromEntries(listings.map((l) => [l.id, listingTitle(l)]));
   const now = today();
   const { data: noteRows } = await supabase
@@ -73,7 +76,7 @@ export default async function CarPage({ params }: PageProps<"/cars/[id]">) {
   return (
     <>
       <AppHeader membership={m} />
-      <LiveRefresh householdId={m.household.id} tables={["notes", "scores", "shortlist", "preferences", "wishlist_items", "listings"]} />
+      <LiveRefresh householdId={m.household.id} tables={["notes", "scores", "shortlist", "preferences", "wishlist_items", "listings", "trim_shortlist"]} />
       <main className="mx-auto w-full max-w-5xl flex-1 space-y-4 px-4 py-6">
         <Link href="/compare" className="text-sm font-medium text-accent hover:underline">
           ← Compare
@@ -311,6 +314,41 @@ export default async function CarPage({ params }: PageProps<"/cars/[id]">) {
             </section>
           )}
         </div>
+
+        {!isCurrent && trims.length > 0 && (
+          <section className="card space-y-3">
+            <div className="flex items-center justify-between gap-2">
+              <h2 className="font-semibold">Trims</h2>
+              <Link href="/compare?view=trims" className="text-sm font-medium text-accent hover:underline">
+                Compare trims
+              </Link>
+            </div>
+            <ul className="divide-y divide-border">
+              {trims.map(({ trim, status }) => {
+                const fitNow = budgetFit(trim, prefs.budget_min, prefs.budget_max);
+                return (
+                  <li key={trim.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
+                    <span className="min-w-0">
+                      <span className="font-medium">{trim.name}</span>
+                      <span className="ml-2 text-xs text-muted">{trim.model_years}</span>
+                      {!trim.specs_verified && <span className="ml-2"><UnverifiedBadge /></span>}
+                      <span className="block text-xs text-muted">
+                        {[
+                          trim.price_low != null || trim.price_high != null
+                            ? `${trim.price_low != null ? usd(trim.price_low) : "?"}–${trim.price_high != null ? usd(trim.price_high) : "?"} used`
+                            : null,
+                          fitNow === "in" ? "in budget" : fitNow === "over" ? "over budget" : fitNow === "under" ? "under budget" : null,
+                          trim.key_features.join(", "),
+                        ].filter(Boolean).join(" · ")}
+                      </span>
+                    </span>
+                    <TrimTargetButton trimId={trim.id} target={status === "target"} />
+                  </li>
+                );
+              })}
+            </ul>
+          </section>
+        )}
 
         {!isCurrent && (
           <section className="card space-y-3">

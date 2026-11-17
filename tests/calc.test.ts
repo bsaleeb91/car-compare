@@ -4,6 +4,7 @@ import {
   annualFuelCost,
   averageScores,
   bestIndexes,
+  budgetFit,
   garageFit,
   monthlyPayment,
   rank,
@@ -129,5 +130,15 @@ describe("listings", () => {
     const { daysUntil } = await import("@/lib/calc");
     expect(daysUntil("2026-11-20", "2026-11-15")).toBe(5);
     expect(daysUntil("2026-11-14", "2026-11-15")).toBe(-1);
+  });
+});
+
+describe("budgetFit", () => {
+  it("compares a used-price range with the budget", () => {
+    expect(budgetFit({ price_low: 31000, price_high: 36000 }, 30000, 35000)).toBe("in");
+    expect(budgetFit({ price_low: 35500, price_high: 40000 }, 30000, 35000)).toBe("over");
+    expect(budgetFit({ price_low: 20000, price_high: 28000 }, 30000, 35000)).toBe("under");
+    expect(budgetFit({ price_low: null, price_high: 33000 }, 30000, 35000)).toBe("in");
+    expect(budgetFit({ price_low: null, price_high: null }, 30000, 35000)).toBeNull();
   });
 });

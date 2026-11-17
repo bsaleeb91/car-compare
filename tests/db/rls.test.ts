@@ -334,6 +334,27 @@ describe("starter catalog seed", () => {
   });
 });
 
+describe("starter trims seed", () => {
+  it("seeds the six Odyssey trims as shared, unverified rows, with Touring adding the family features", async () => {
+    const q = "select name, features from car_compare.trims t join car_compare.vehicles v on v.id = t.vehicle_id where t.household_id is null and v.model = 'Odyssey' and t.specs_verified = false";
+    const rows = (await as(db, X, () => db.query<{ name: string; features: Record<string, boolean> }>(q))).rows;
+    expect(rows.map((r) => r.name).sort()).toEqual(["EX", "EX-L", "Elite", "LX", "Sport", "Touring"]);
+    expect(rows.every((r) => r.features.backup_camera === true)).toBe(true);
+    const touring = rows.find((r) => r.name === "Touring")!.features;
+    expect([touring.parking_sensors, touring.rear_camera, touring.intercom, touring.rear_entertainment]).toEqual([true, true, true, true]);
+    expect(rows.find((r) => r.name === "EX")!.features.parking_sensors).toBe(false);
+  });
+
+  it("lets a household mark a shared trim as a target, and only that household sees the mark", async () => {
+    const { rows } = await db.query<{ id: string }>("select id from car_compare.trims where name = 'Touring' and household_id is null limit 1");
+    await as(db, A1, () =>
+      db.query("insert into car_compare.trim_shortlist (household_id, trim_id, status) values ($1, $2, 'target') on conflict do nothing", [hA, rows[0].id]),
+    );
+    expect(await as(db, A1, () => count("select 1 from car_compare.trim_shortlist where trim_id = $1", [rows[0].id]))).toBe(1);
+    expect(await as(db, B1, () => count("select 1 from car_compare.trim_shortlist where trim_id = $1", [rows[0].id]))).toBe(0);
+  });
+});
+
 describe("removing a car from the shortlist", () => {
   it("members can remove and restore; other households can't touch it", async () => {
     await as(db, A1, () =>
