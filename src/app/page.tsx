@@ -8,6 +8,8 @@ import { LiveRefresh } from "@/components/LiveRefresh";
 import { getListings, listingTitle, today } from "@/lib/listings";
 import { daysUntil } from "@/lib/calc";
 import { FollowUpBadge } from "@/app/listings/bits";
+import { StageProgress } from "@/components/StageProgress";
+import { getFlowState } from "@/lib/flow-data";
 
 const tiles = [
   { href: "/compare", title: "Compare", text: "Every spec side by side, with garage fit, payments and fuel.", cls: "bg-accent-soft text-accent", icon: "⇆" },
@@ -23,10 +25,11 @@ const upcoming = [
 export default async function HomePage() {
   const m = await requireMembership();
   const supabase = await createClient();
-  const [{ count }, { ranked }, listings] = await Promise.all([
+  const [{ count }, { ranked }, listings, flow] = await Promise.all([
     supabase.from("household_members").select("user_id", { count: "exact", head: true }).eq("household_id", m.household.id),
     getComparison(m.household.id),
     getListings(m.household.id),
+    getFlowState(m.household.id),
   ]);
   const now = today();
   // Due today, overdue, or tomorrow; passed listings don't need chasing.
@@ -39,7 +42,7 @@ export default async function HomePage() {
   return (
     <>
       <AppHeader membership={m} />
-      <LiveRefresh householdId={m.household.id} tables={["scores", "shortlist", "preferences", "listings"]} />
+      <LiveRefresh householdId={m.household.id} tables={["scores", "shortlist", "preferences", "listings", "trim_shortlist"]} />
       <main className="mx-auto w-full max-w-5xl flex-1 space-y-5 px-4 py-6">
         <section className="hero relative overflow-hidden rounded-3xl p-6 shadow-xl shadow-accent/25">
           <div aria-hidden className="absolute -right-10 -top-16 size-56 rounded-full bg-white/10" />
@@ -54,6 +57,8 @@ export default async function HomePage() {
             Open the compare table →
           </Link>
         </section>
+
+        <StageProgress counts={flow.counts} />
 
         {due.length > 0 && (
           <section className="card space-y-2 border-amber/40">

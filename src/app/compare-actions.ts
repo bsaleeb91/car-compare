@@ -228,6 +228,27 @@ export async function setTrimTargetAction(input: { trimId: string; target: boole
     return { error: "Couldn't save that. Try again." };
   }
   revalidatePath("/compare");
+  revalidatePath("/listings");
   revalidatePath("/");
+  return { ok: true };
+}
+
+/** Marks a shortlisted car as a finalist (moves on to the Trims stage) or puts it back to considering. Removed cars are left alone. */
+export async function setFinalistAction(input: { vehicleId: string; finalist: boolean }) {
+  const m = await requireMembership();
+  const p = z.object({ vehicleId: z.uuid(), finalist: z.boolean() }).parse(input);
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("shortlist")
+    .update({ status: p.finalist ? "finalist" : "considering" })
+    .eq("household_id", m.household.id)
+    .eq("vehicle_id", p.vehicleId)
+    .neq("status", "rejected")
+    .select("vehicle_id");
+  if (error || !data?.length) {
+    if (error) console.error(error);
+    return { error: "Couldn't save that. Try again." };
+  }
+  revalidatePath("/", "layout");
   return { ok: true };
 }

@@ -4,6 +4,8 @@ import { AppHeader } from "@/components/AppHeader";
 import { FitChip, ScoreBadge, TypeChip, UnverifiedBadge, scoreClass } from "@/components/chips";
 import { LiveRefresh } from "@/components/LiveRefresh";
 import { ShortlistButton } from "@/components/ShortlistButton";
+import { FinalistButton } from "@/components/FinalistButton";
+import { getFlowState } from "@/lib/flow-data";
 import { usd } from "@/components/CompareTable";
 import { requireMembership } from "@/lib/session";
 import { createClient } from "@/lib/supabase/server";
@@ -33,6 +35,7 @@ export default async function CarPage({ params }: PageProps<"/cars/[id]">) {
   const supabase = await createClient();
   const listings = await getListings(m.household.id, id);
   const trims = await getTrims(m.household.id, [id]);
+  const flow = await getFlowState(m.household.id);
   const fits = fitSummary((await getSeatChecks(m.household.id)).filter((c) => listings.some((l) => l.id === c.listing_id)));
   const listingNames = Object.fromEntries(listings.map((l) => [l.id, listingTitle(l)]));
   const now = today();
@@ -107,6 +110,7 @@ export default async function CarPage({ params }: PageProps<"/cars/[id]">) {
           {!isCurrent && (
             <div className="flex w-40 flex-col items-end gap-1">
               {r && <ScoreBadge score={r.score} complete={r.complete} />}
+              {!isRemoved && <FinalistButton vehicleId={v.id} name={name} finalist={flow.finalistIds.includes(v.id)} className="items-end" />}
               <ShortlistButton vehicleId={v.id} name={name} removed={isRemoved} className="-mr-2 items-end" />
             </div>
           )}

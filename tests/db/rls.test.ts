@@ -241,6 +241,25 @@ describe("catalog", () => {
   });
 });
 
+describe("finalists", () => {
+  it("members can mark a shortlisted car as a finalist; other households can't, and bogus statuses are rejected", async () => {
+    await as(db, A1, () =>
+      db.query("insert into car_compare.shortlist (household_id, vehicle_id) values ($1, $2) on conflict do nothing", [hA, sharedVehicle]),
+    );
+    const set = async (user: string, status: string) =>
+      (
+        await as(db, user, () =>
+          db.query("update car_compare.shortlist set status = $3 where household_id = $1 and vehicle_id = $2 returning 1", [hA, sharedVehicle, status]),
+        )
+      ).rows.length;
+    expect(await set(A2, "finalist")).toBe(1);
+    expect(await set(B1, "finalist")).toBe(0);
+    expect(await count("select 1 from car_compare.shortlist where household_id = $1 and status = 'finalist'", [hA])).toBe(1);
+    await expect(set(A1, "winner")).rejects.toThrow();
+    expect(await set(A1, "considering")).toBe(1);
+  });
+});
+
 describe("car-seat fit", () => {
   it("household members share seats and fit checks; other households see nothing and can't write into them", async () => {
     const listing = (

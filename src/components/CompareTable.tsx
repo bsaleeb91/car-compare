@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { TypeChip, FitChip, ScoreBadge } from "@/components/chips";
 import { ShortlistButton } from "@/components/ShortlistButton";
+import { FinalistButton } from "@/components/FinalistButton";
 import type { Vehicle, Preferences } from "@/lib/data";
 import type { FeatureMatch } from "@/lib/features";
 import { amountFinanced, annualFuelCost, bestIndexes, garageFit, monthlyPayment } from "@/lib/calc";
@@ -13,6 +14,7 @@ export type Column = {
   isCurrent: boolean;
   testDrive?: number | null;
   match?: FeatureMatch;
+  finalist?: boolean;
 };
 
 type Cell = number | string | boolean | null;
@@ -193,7 +195,7 @@ export function CompareTable({ prefs, cols }: { prefs: Preferences; cols: Column
             {cols.map((c) => (
               <th
                 key={c.vehicle.id}
-                className={`min-w-36 border-l border-border p-3 text-left align-top font-normal ${c.isCurrent ? "bg-surface-2" : c.rank === 1 ? "bg-accent-soft" : ""}`}
+                className={`min-w-36 border-l border-border p-3 text-left align-top font-normal ${c.isCurrent ? "bg-surface-2" : c.finalist ? "bg-teal-soft" : c.rank === 1 ? "bg-accent-soft" : ""}`}
               >
                 <div className="flex items-center justify-between gap-2">
                   {c.isCurrent ? (
@@ -219,6 +221,9 @@ export function CompareTable({ prefs, cols }: { prefs: Preferences; cols: Column
                         Missing a must-have
                       </span>
                     )}
+                    <div className="mt-2">
+                      <FinalistButton vehicleId={c.vehicle.id} name={`${c.vehicle.make} ${c.vehicle.model}`} finalist={c.finalist === true} />
+                    </div>
                     <ShortlistButton vehicleId={c.vehicle.id} name={`${c.vehicle.make} ${c.vehicle.model}`} className="-ml-2 mt-1" />
                   </>
                 )}

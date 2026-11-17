@@ -8,20 +8,26 @@ import { RemovedList } from "@/components/RemovedList";
 import { LiveRefresh } from "@/components/LiveRefresh";
 import { TrimTable } from "@/components/TrimTable";
 import { getTrims } from "@/lib/trims";
+import { StageProgress } from "@/components/StageProgress";
+import { getFlowState } from "@/lib/flow-data";
+import { trimsInScope } from "@/lib/flow";
 
 export const metadata = { title: "Compare · Car Compare" };
 
 export default async function ComparePage({ searchParams }: PageProps<"/compare">) {
-  const { view } = await searchParams;
+  const { view, all } = await searchParams;
   const trimsView = view === "trims";
   const m = await requireMembership();
-  const { prefs, ranked, current, removed, wishlist } = await getComparison(m.household.id);
+  const [{ prefs, ranked, current, removed, wishlist }, flow] = await Promise.all([getComparison(m.household.id), getFlowState(m.household.id)]);
+  const finalistSet = new Set(flow.finalistIds);
+  const showAll = all === "1";
   const order = [...ranked].sort((a, b) => (a.rank ?? 99) - (b.rank ?? 99));
-  const cols = [...order.map((r) => ({ ...r, isCurrent: false, match: matchFeatures(r.vehicle, wishlist) })), ...(current ? [{ vehicle: current, score: null, complete: false, rank: null, avg: {}, isCurrent: true }] : [])];
+  const cols = [...order.map((r) => ({ ...r, isCurrent: false, finalist: finalistSet.has(r.vehicle.id), match: matchFeatures(r.vehicle, wishlist) })), ...(current ? [{ vehicle: current, score: null, complete: false, rank: null, avg: {}, isCurrent: true }] : [])];
   const noGarage = prefs.garage_depth_in == null;
   const byId = new Map(order.map((r) => [r.vehicle.id, r.vehicle]));
-  const trimCols = trimsView
-    ? (await getTrims(m.household.id, [...byId.keys()])).flatMap(({ trim, status }) => {
+  const scope = trimsInScope([...byId.keys()], flow.finalistIds, showAll);
+  const trimCols = trimsView && !scope.locked
+    ? (await getTrims(m.household.id, scope.ids)).flatMap(({ trim, status }) => {
         const vehicle = byId.get(trim.vehicle_id);
         return vehicle ? [{ trim, vehicle, status }] : [];
       })
@@ -30,7 +36,7 @@ export default async function ComparePage({ searchParams }: PageProps<"/compare"
   return (
     <>
       <AppHeader membership={m} />
-      <LiveRefresh householdId={m.household.id} tables={["scores", "shortlist", "preferences", "wishlist_items", "trim_shortlist"]} />
+      <LiveRefresh householdId={m.household.id} tables={["scores", "shortlist", "preferences", "wishlist_items", "trim_shortlist", "listings"]} />
       <main className="mx-auto w-full max-w-5xl flex-1 space-y-4 px-4 py-6">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
@@ -44,6 +50,8 @@ export default async function ComparePage({ searchParams }: PageProps<"/compare"
             Edit scores
           </Link>
         </div>
+
+        <StageProgress counts={flow.counts} current={trimsView ? "trims" : "models"} />
 
         <div className="flex gap-1 rounded-2xl bg-surface-2 p-1 sm:w-fit" role="tablist" aria-label="Compare by">
           {[
@@ -72,13 +80,37 @@ export default async function ComparePage({ searchParams }: PageProps<"/compare"
           </p>
         )}
 
-        {trimsView ? (
+        {trimsView && scope.locked ? (
+          <section className="card space-y-2">
+            <h2 className="font-semibold">Pick your finalists first</h2>
+            <p className="text-sm text-muted">
+              Trims open once you have narrowed the models. Mark one or more cars as finalists in Models, and their trims show up here.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <Link href="/compare" className="btn-primary text-sm">
+                Choose finalists
+              </Link>
+              <Link href="/compare?view=trims&all=1" className="btn-secondary text-sm">
+                Show every car&apos;s trims anyway
+              </Link>
+            </div>
+          </section>
+        ) : trimsView ? (
           trimCols.length === 0 ? (
-            <p className="card text-muted">No trims are recorded for the cars on your list yet.</p>
+            <p className="card text-muted">No trims are recorded for these cars yet. Odyssey trims are in; more are coming.</p>
           ) : (
             <>
               <p className="text-sm text-muted">
-                Every trim of the cars on your list, side by side. Mark the ones worth shopping for as targets.
+                {scope.narrowed ? "Trims of your finalists" : "Every trim of the cars on your list"}, side by side. Mark the ones worth shopping for as targets.{" "}
+                {scope.narrowed ? (
+                  <Link href="/compare?view=trims&all=1" className="font-medium text-accent hover:underline">
+                    Show every car&apos;s trims
+                  </Link>
+                ) : flow.finalistIds.length > 0 ? (
+                  <Link href="/compare?view=trims" className="font-medium text-accent hover:underline">
+                    Back to finalists only
+                  </Link>
+                ) : null}
               </p>
               <TrimTable prefs={prefs} cols={trimCols} wishlist={wishlist} />
             </>

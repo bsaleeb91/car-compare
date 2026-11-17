@@ -9,6 +9,8 @@ import { daysUntil, listingCost, listingTerms } from "@/lib/calc";
 import { AddListing } from "./AddListing";
 import { FinanceCompare } from "./FinanceCompare";
 import { getSeatChecks } from "@/lib/seats";
+import { StageProgress } from "@/components/StageProgress";
+import { getFlowState } from "@/lib/flow-data";
 import { fitSummary, summaryText } from "@/lib/seatfit";
 import { FollowUpBadge, StatusChip } from "./bits";
 
@@ -17,7 +19,7 @@ export const metadata = { title: "Listings · Car Compare" };
 export default async function ListingsPage({ searchParams }: PageProps<"/listings">) {
   const sp = await searchParams;
   const m = await requireMembership();
-  const [{ prefs, ranked }, listings, seatChecks] = await Promise.all([getComparison(m.household.id), getListings(m.household.id), getSeatChecks(m.household.id)]);
+  const [{ prefs, ranked }, listings, seatChecks, flow] = await Promise.all([getComparison(m.household.id), getListings(m.household.id), getSeatChecks(m.household.id), getFlowState(m.household.id)]);
   const fits = fitSummary(seatChecks);
   const filter = typeof sp.status === "string" && LISTING_STATUSES.some((s) => s.key === sp.status) ? sp.status : null;
   const addFor = typeof sp.add === "string" ? sp.add : undefined;
@@ -59,12 +61,24 @@ export default async function ListingsPage({ searchParams }: PageProps<"/listing
   return (
     <>
       <AppHeader membership={m} />
-      <LiveRefresh householdId={m.household.id} tables={["listings", "contact_log", "quotes", "seat_fit_checks"]} />
+      <LiveRefresh householdId={m.household.id} tables={["listings", "contact_log", "quotes", "seat_fit_checks", "shortlist", "trim_shortlist"]} />
       <main className="mx-auto w-full max-w-5xl flex-1 space-y-4 px-4 py-6">
         <div>
           <h1 className="text-2xl font-bold">Listings</h1>
           <p className="text-sm text-muted">Real cars for sale you&apos;re tracking, with dealer contacts, quotes and follow-ups.</p>
         </div>
+
+        <StageProgress counts={flow.counts} current="listings" />
+
+        {flow.targetNames.length > 0 && (
+          <p className="text-sm">
+            <span className="text-muted">Shopping for: </span>
+            <span className="font-medium">{flow.targetNames.join(" · ")}</span>{" "}
+            <Link href="/compare?view=trims" className="font-medium text-accent hover:underline">
+              Change
+            </Link>
+          </p>
+        )}
 
         <div className="flex gap-1 rounded-2xl bg-surface-2 p-1 sm:w-fit" role="tablist" aria-label="Listings view">
           {[
