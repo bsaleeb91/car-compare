@@ -8,14 +8,23 @@ See [`docs/SPEC.md`](docs/SPEC.md) for the full product spec and the implementat
 
 ## Status
 
-| Phase | Scope | Status |
+Live and in use. Built in ten steps; nine are done.
+
+| Step | Feature | Status |
 | --- | --- | --- |
-| 1 | Next.js + Supabase scaffold, full schema with RLS, email-code sign-in, household creation, invites | **Done** |
-| 2 | Seed catalog, preferences wizard, compare table and calculations | Next |
-| 3 | Vehicle detail page: notes (Realtime), scores, listings, garage/payment/fuel panels | |
-| 4 | Claude routes (`/api/recommend`, `/api/ask`) | |
-| 5 | Three-stage flow, add-any-vehicle autofill | |
-| 6 | Listings tracker, financing quotes, mobile polish, deploy | |
+| 1 | Car pages: specs, garage fit, payment and fuel panels, scores | Done |
+| 2 | Shared notes that sync live between household members | Done |
+| 3 | Test-drive scorecard | Done |
+| 4 | Must-haves and nice-to-haves, with "missing a must-have" flags | Done |
+| 5 | Listings tracker: dealer contacts, contact log, follow-ups, quotes | Done |
+| 6 | Trims compare: Models / Trims switch, target trims (Odyssey trims seeded) | Done |
+| 7 | Finance what-ifs: per-listing sliders, side-by-side financing | Done |
+| 8 | Car-seat fit: household car seats, per-listing seat map and fit check | Done |
+| 9 | Claude features: recommend, ask, suggested tiers, add-any-vehicle autofill | To do (needs `ANTHROPIC_API_KEY`) |
+| 10 | Three-stage flow: models, then trims, then listings, with a progress bar | Done |
+
+Known gaps: lender pre-approval quotes, linking listings to trims, brand-origin exclusion and the buy-by date in
+Preferences, sliders for the priority weights, sortable compare columns, and trims for models other than the Odyssey.
 
 ## Stack
 
