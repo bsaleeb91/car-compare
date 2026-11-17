@@ -1,6 +1,8 @@
 import { AppHeader } from "@/components/AppHeader";
 import { requireMembership } from "@/lib/session";
 import { getPreferences, getWishlist } from "@/lib/data";
+import { getCarSeats } from "@/lib/seats";
+import { CarSeatsEditor } from "./CarSeatsEditor";
 import { WishlistEditor } from "./WishlistEditor";
 import { PreferencesForm } from "./PreferencesForm";
 
@@ -8,7 +10,7 @@ export const metadata = { title: "Preferences · Car Compare" };
 
 export default async function PreferencesPage() {
   const m = await requireMembership();
-  const [prefs, wishlist] = await Promise.all([getPreferences(m.household.id), getWishlist(m.household.id)]);
+  const [prefs, wishlist, seats] = await Promise.all([getPreferences(m.household.id), getWishlist(m.household.id), getCarSeats(m.household.id)]);
   return (
     <>
       <AppHeader membership={m} />
@@ -19,6 +21,7 @@ export default async function PreferencesPage() {
         </div>
         <PreferencesForm prefs={prefs} />
         <WishlistEditor items={wishlist} />
+        <CarSeatsEditor seats={seats} />
       </main>
     </>
   );

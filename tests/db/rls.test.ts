@@ -241,6 +241,47 @@ describe("catalog", () => {
   });
 });
 
+describe("car-seat fit", () => {
+  it("household members share seats and fit checks; other households see nothing and can't write into them", async () => {
+    const listing = (
+      await as(db, A1, () =>
+        one<{ id: string }>(
+          "insert into car_compare.listings (household_id, vehicle_id, asking_price) values ($1, $2, 30000) returning id",
+          [hA, sharedVehicle],
+        ),
+      )
+    ).id;
+    const seat = (
+      await as(db, A1, () =>
+        one<{ id: string }>(
+          "insert into car_compare.car_seats (household_id, name, type, width_in) values ($1, 'Infant carrier', 'infant', 17.5) returning id",
+          [hA],
+        ),
+      )
+    ).id;
+    await as(db, A1, () =>
+      db.query(
+        "insert into car_compare.seat_fit_checks (household_id, listing_id, car_seat_id, position, install_method, result) values ($1, $2, $3, 'row2_left', 'latch', 'tight')",
+        [hA, listing, seat],
+      ),
+    );
+    expect(await as(db, A2, () => count("select 1 from car_compare.seat_fit_checks where listing_id = $1", [listing]))).toBe(1);
+    expect(await as(db, B1, () => count("select 1 from car_compare.seat_fit_checks where listing_id = $1", [listing]))).toBe(0);
+    expect(await as(db, B1, () => count("select 1 from car_compare.car_seats where id = $1", [seat]))).toBe(0);
+    // A bad position or result is rejected, and so is a check on another household's listing.
+    await expect(
+      as(db, A1, () =>
+        db.query("insert into car_compare.seat_fit_checks (household_id, listing_id, car_seat_id, position, result) values ($1, $2, $3, 'trunk', 'pass')", [hA, listing, seat]),
+      ),
+    ).rejects.toThrow();
+    await expect(
+      as(db, B1, () =>
+        db.query("insert into car_compare.seat_fit_checks (household_id, listing_id, car_seat_id, position, result) values ($1, $2, $3, 'row2_left', 'pass')", [hB, listing, seat]),
+      ),
+    ).rejects.toThrow();
+  });
+});
+
 describe("preferences constraints", () => {
   it("weights must total 100", async () => {
     await expect(

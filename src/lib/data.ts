@@ -32,6 +32,7 @@ export type Vehicle = {
   reliability_note: string | null;
   budget_years: string | null;
   latch_positions: number | null;
+  tether_anchors: number | null;
   nhtsa_rollover_stars: number | null;
   nhtsa_overall_stars: number | null;
   specs_verified: boolean;
@@ -68,7 +69,7 @@ function nums<T extends Record<string, unknown>>(row: T, keys: string[]): T {
 const VEHICLE_NUMS = [
   "seats", "length_in", "width_in", "height_in", "wheelbase_in", "ground_clearance_in", "cargo_3rd", "cargo_2nd",
   "cargo_max", "third_row_legroom_in", "hp", "mpg_combined", "towing_lbs", "price_low", "price_high",
-  "nhtsa_rollover_stars", "nhtsa_overall_stars", "latch_positions",
+  "nhtsa_rollover_stars", "nhtsa_overall_stars", "latch_positions", "tether_anchors",
 ];
 const PREF_NUMS = [
   "budget_min", "budget_max", "down_payment", "loan_months", "apr_new", "apr_cpo", "apr_used", "sales_tax_pct", "fees",

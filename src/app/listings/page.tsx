@@ -8,6 +8,8 @@ import { LISTING_STATUSES, getListings, listingTitle, today } from "@/lib/listin
 import { daysUntil, listingCost, listingTerms } from "@/lib/calc";
 import { AddListing } from "./AddListing";
 import { FinanceCompare } from "./FinanceCompare";
+import { getSeatChecks } from "@/lib/seats";
+import { fitSummary, summaryText } from "@/lib/seatfit";
 import { FollowUpBadge, StatusChip } from "./bits";
 
 export const metadata = { title: "Listings · Car Compare" };
@@ -15,7 +17,8 @@ export const metadata = { title: "Listings · Car Compare" };
 export default async function ListingsPage({ searchParams }: PageProps<"/listings">) {
   const sp = await searchParams;
   const m = await requireMembership();
-  const [{ prefs, ranked }, listings] = await Promise.all([getComparison(m.household.id), getListings(m.household.id)]);
+  const [{ prefs, ranked }, listings, seatChecks] = await Promise.all([getComparison(m.household.id), getListings(m.household.id), getSeatChecks(m.household.id)]);
+  const fits = fitSummary(seatChecks);
   const filter = typeof sp.status === "string" && LISTING_STATUSES.some((s) => s.key === sp.status) ? sp.status : null;
   const addFor = typeof sp.add === "string" ? sp.add : undefined;
   const cars = ranked.map((r) => ({ id: r.vehicle.id, name: `${r.vehicle.make} ${r.vehicle.model}` })).sort((a, b) => a.name.localeCompare(b.name));
@@ -56,7 +59,7 @@ export default async function ListingsPage({ searchParams }: PageProps<"/listing
   return (
     <>
       <AppHeader membership={m} />
-      <LiveRefresh householdId={m.household.id} tables={["listings", "contact_log", "quotes"]} />
+      <LiveRefresh householdId={m.household.id} tables={["listings", "contact_log", "quotes", "seat_fit_checks"]} />
       <main className="mx-auto w-full max-w-5xl flex-1 space-y-4 px-4 py-6">
         <div>
           <h1 className="text-2xl font-bold">Listings</h1>
@@ -122,6 +125,7 @@ export default async function ListingsPage({ searchParams }: PageProps<"/listing
                       <div>
                         <p className="text-xl font-bold tabular-nums">{l.asking_price != null ? usd(l.asking_price) : "—"}</p>
                         {cost && <p className="text-sm text-muted tabular-nums">{usd(cost.monthly)}/mo at {cost.apr}%</p>}
+                        {summaryText(fits[l.id]) && <p className={`text-xs ${fits[l.id].fail ? "text-coral" : fits[l.id].tight ? "text-amber" : "text-success"}`}>Car seats: {summaryText(fits[l.id])}</p>}
                       </div>
                       {l.follow_up_on && <FollowUpBadge date={l.follow_up_on} today={now} />}
                     </div>

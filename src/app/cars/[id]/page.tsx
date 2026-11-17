@@ -12,6 +12,8 @@ import { CRITERIA, TEST_DRIVE, budgetFit, amountFinanced, annualFuelCost, garage
 import { NotesThread, type Note } from "./NotesThread";
 import { matchFeatures, type FeatureStatus } from "@/lib/features";
 import { getTrims } from "@/lib/trims";
+import { getSeatChecks } from "@/lib/seats";
+import { fitSummary, summaryText } from "@/lib/seatfit";
 import { TrimTargetButton } from "@/components/TrimTargetButton";
 import { getListings, listingTitle, today } from "@/lib/listings";
 import { StatusChip as ListingStatusChip, FollowUpBadge } from "@/app/listings/bits";
@@ -31,6 +33,7 @@ export default async function CarPage({ params }: PageProps<"/cars/[id]">) {
   const supabase = await createClient();
   const listings = await getListings(m.household.id, id);
   const trims = await getTrims(m.household.id, [id]);
+  const fits = fitSummary((await getSeatChecks(m.household.id)).filter((c) => listings.some((l) => l.id === c.listing_id)));
   const listingNames = Object.fromEntries(listings.map((l) => [l.id, listingTitle(l)]));
   const now = today();
   const { data: noteRows } = await supabase
@@ -56,6 +59,8 @@ export default async function CarPage({ params }: PageProps<"/cars/[id]">) {
 
   const specs: [string, string | null][] = [
     ["Seats", v.seats?.toString() ?? null],
+    ["LATCH positions", v.latch_positions != null ? String(v.latch_positions) : null],
+    ["Tether anchors", v.tether_anchors != null ? String(v.tether_anchors) : null],
     ["Sliding doors", v.sliding_doors == null ? null : v.sliding_doors ? "Yes" : "No"],
     ["Cargo behind 3rd row", v.cargo_3rd != null ? `${v.cargo_3rd} cu ft` : null],
     ["Cargo behind 2nd row", v.cargo_2nd != null ? `${v.cargo_2nd} cu ft` : null],
@@ -370,6 +375,9 @@ export default async function CarPage({ params }: PageProps<"/cars/[id]">) {
                         <span className="block text-xs text-muted">
                           {[l.asking_price != null ? usd(l.asking_price) : null, l.miles != null ? `${l.miles.toLocaleString()} mi` : null, l.dealer].filter(Boolean).join(" · ")}
                         </span>
+                        {summaryText(fits[l.id]) && (
+                          <span className={`block text-xs ${fits[l.id].fail ? "text-coral" : fits[l.id].tight ? "text-amber" : "text-success"}`}>Car seats: {summaryText(fits[l.id])}</span>
+                        )}
                       </span>
                       <span className="flex items-center gap-1">
                         {l.follow_up_on && l.status !== "passed" && <FollowUpBadge date={l.follow_up_on} today={now} />}

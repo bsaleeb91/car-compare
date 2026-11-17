@@ -12,6 +12,9 @@ import { matchFeatures } from "@/lib/features";
 import { NotesThread, type Note } from "@/app/cars/[id]/NotesThread";
 import { FollowUpBadge } from "../bits";
 import { FinanceWhatIf } from "./FinanceWhatIf";
+import { SeatFitCard } from "./SeatFitCard";
+import { getCarSeats, getSeatChecks } from "@/lib/seats";
+import { hasThirdRow } from "@/lib/seatfit";
 import { ContactCard, DeleteListing, DetailsCard, FeatureChecks, LogCard, QuotesCard, StatusPicker } from "./parts";
 
 export default async function ListingPage({ params }: PageProps<"/listings/[id]">) {
@@ -24,6 +27,7 @@ export default async function ListingPage({ params }: PageProps<"/listings/[id]"
   ]);
   if (!detail) notFound();
   const { listing: l, contact, quotes, log, checks } = detail;
+  const [carSeats, seatChecks] = await Promise.all([getCarSeats(m.household.id), getSeatChecks(m.household.id, id)]);
 
   const supabase = await createClient();
   const { data: noteRows } = await supabase
@@ -56,7 +60,7 @@ export default async function ListingPage({ params }: PageProps<"/listings/[id]"
   return (
     <>
       <AppHeader membership={m} />
-      <LiveRefresh householdId={m.household.id} tables={["listings", "contact_log", "quotes", "notes", "listing_feature_checks"]} />
+      <LiveRefresh householdId={m.household.id} tables={["listings", "contact_log", "quotes", "notes", "listing_feature_checks", "seat_fit_checks"]} />
       <main className="mx-auto w-full max-w-5xl flex-1 space-y-4 px-4 py-6">
         <Link href="/listings" className="text-sm font-medium text-accent hover:underline">
           ← Listings
@@ -122,6 +126,8 @@ export default async function ListingPage({ params }: PageProps<"/listings/[id]"
             />
           )}
         </div>
+
+        <SeatFitCard listingId={l.id} seats={carSeats} checks={seatChecks} names={{}} third={hasThirdRow(vehicle?.seats)} />
 
         <NotesThread vehicleId={l.vehicle_id} listingId={l.id} notes={notes} myId={m.userId} />
 
