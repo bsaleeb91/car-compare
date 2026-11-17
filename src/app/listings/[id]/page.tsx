@@ -7,10 +7,11 @@ import { requireMembership } from "@/lib/session";
 import { createClient } from "@/lib/supabase/server";
 import { getComparison } from "@/lib/data";
 import { getListing, listingTitle, today } from "@/lib/listings";
-import { listingCost } from "@/lib/calc";
+import { listingTerms } from "@/lib/calc";
 import { matchFeatures } from "@/lib/features";
 import { NotesThread, type Note } from "@/app/cars/[id]/NotesThread";
 import { FollowUpBadge } from "../bits";
+import { FinanceWhatIf } from "./FinanceWhatIf";
 import { ContactCard, DeleteListing, DetailsCard, FeatureChecks, LogCard, QuotesCard, StatusPicker } from "./parts";
 
 export default async function ListingPage({ params }: PageProps<"/listings/[id]">) {
@@ -39,7 +40,16 @@ export default async function ListingPage({ params }: PageProps<"/listings/[id]"
     .map((v) => ({ id: v.id, name: `${v.make} ${v.model}` }))
     .sort((a, b) => a.name.localeCompare(b.name));
   const match = vehicle ? matchFeatures(vehicle, wishlist, checks) : null;
-  const cost = listingCost(l, prefs);
+  const terms = listingTerms(l, prefs);
+  const defaultTerms = listingTerms({ ...l, apr_override: null, down_override: null, term_override: null }, prefs);
+  const fin = {
+    down_payment: prefs.down_payment,
+    loan_months: prefs.loan_months,
+    apr_used: prefs.apr_used,
+    include_tax_fees: prefs.include_tax_fees,
+    sales_tax_pct: prefs.sales_tax_pct,
+    fees: prefs.fees,
+  };
   const title = listingTitle(l);
   const now = today();
 
@@ -87,35 +97,16 @@ export default async function ListingPage({ params }: PageProps<"/listings/[id]"
           )}
         </section>
 
-        <div className="grid gap-4 md:grid-cols-3">
-          <section className="card space-y-1">
-            <h2 className="font-semibold">Monthly payment</h2>
-            {cost ? (
-              <>
-                <p className="text-2xl font-bold tabular-nums">
-                  {usd(cost.monthly)}
-                  <span className="text-sm font-normal text-muted">/mo</span>
-                </p>
-                <p className="text-sm text-muted">
-                  {cost.apr}% for {cost.months} months, {usd(cost.down)} down
-                  {l.apr_override == null ? ` (your ${l.condition === "cpo" ? "CPO" : l.condition} rate)` : " (dealer rate)"}.
-                </p>
-              </>
-            ) : (
-              <p className="text-sm text-muted">Add the asking price to see a payment.</p>
-            )}
-          </section>
-          <section className="card space-y-1">
-            <h2 className="font-semibold">Total interest</h2>
-            <p className="text-2xl font-bold tabular-nums">{cost ? usd(cost.totalInterest) : "—"}</p>
-            <p className="text-sm text-muted">Over the life of the loan.</p>
-          </section>
-          <section className="card space-y-1">
-            <h2 className="font-semibold">Total cost</h2>
-            <p className="text-2xl font-bold tabular-nums">{cost ? usd(cost.totalCost) : "—"}</p>
-            <p className="text-sm text-muted">Down payment plus every monthly payment{prefs.include_tax_fees ? ", with tax and fees" : ""}.</p>
-          </section>
-        </div>
+        <FinanceWhatIf
+          listingId={l.id}
+          askingPrice={l.asking_price}
+          saved={{ apr: terms.apr, down: terms.down, months: terms.months }}
+          defaults={{ apr: defaultTerms.apr, down: defaultTerms.down, months: defaultTerms.months }}
+          hasOverrides={l.apr_override != null || l.down_override != null || l.term_override != null}
+          conditionLabel={l.condition === "cpo" ? "CPO" : l.condition}
+          fin={fin}
+          quotes={quotes.map((q) => ({ id: q.id, otd_price: q.otd_price, apr_offered: q.apr_offered, quoted_on: q.quoted_on }))}
+        />
 
         <div className="grid gap-4 md:grid-cols-2">
           <ContactCard listingId={l.id} contact={contact} fallbackDealer={l.dealer} />

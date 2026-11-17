@@ -184,15 +184,20 @@ export function listingTerms(l: ListingTerms, p: DefaultTerms) {
   };
 }
 
+/** Loan math for any price, APR, down payment and term: what the what-if sliders move. */
+export function loanCost(price: number, apr: number, down: number, months: number, p: Financing) {
+  const outTheDoor = amountFinanced(price, { ...p, down_payment: 0 });
+  const principal = Math.max(0, outTheDoor - down);
+  const monthly = monthlyPayment(principal, apr, months);
+  const totalPaid = monthly * months;
+  return { principal, monthly, totalInterest: totalPaid - principal, totalCost: totalPaid + Math.min(down, outTheDoor) };
+}
+
 /** Monthly payment, total interest and total cost for a listing, or null without an asking price. */
 export function listingCost(l: ListingTerms, p: DefaultTerms) {
   if (l.asking_price == null) return null;
   const t = listingTerms(l, p);
-  const outTheDoor = amountFinanced(l.asking_price, { ...p, down_payment: 0 });
-  const principal = Math.max(0, outTheDoor - t.down);
-  const monthly = monthlyPayment(principal, t.apr, t.months);
-  const totalPaid = monthly * t.months;
-  return { ...t, principal, monthly, totalInterest: totalPaid - principal, totalCost: totalPaid + Math.min(t.down, outTheDoor) };
+  return { ...t, ...loanCost(l.asking_price, t.apr, t.down, t.months, p) };
 }
 
 /** Days from `today` until `date` (negative = overdue). Dates are YYYY-MM-DD in the household's local sense. */

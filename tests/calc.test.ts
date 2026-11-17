@@ -5,6 +5,7 @@ import {
   averageScores,
   bestIndexes,
   budgetFit,
+  loanCost,
   garageFit,
   monthlyPayment,
   rank,
@@ -140,5 +141,35 @@ describe("budgetFit", () => {
     expect(budgetFit({ price_low: 20000, price_high: 28000 }, 30000, 35000)).toBe("under");
     expect(budgetFit({ price_low: null, price_high: 33000 }, 30000, 35000)).toBe("in");
     expect(budgetFit({ price_low: null, price_high: null }, 30000, 35000)).toBeNull();
+  });
+});
+
+describe("loanCost", () => {
+  const f = { down_payment: 10000, loan_months: 60, apr_used: 6.5, include_tax_fees: false, sales_tax_pct: 4.15, fees: 500 };
+
+  it("matches the amortization for a price, APR, down payment and term", () => {
+    const c = loanCost(32500, 6.5, 10000, 60, f);
+    expect(c.principal).toBe(22500);
+    expect(c.monthly).toBeCloseTo(440.24, 2);
+    expect(c.totalInterest).toBeCloseTo(440.24 * 60 - 22500, 0);
+    expect(c.totalCost).toBeCloseTo(440.24 * 60 + 10000, 0);
+  });
+
+  it("a lower APR on a pricier car can still cost less in total", () => {
+    const promo = loanCost(36000, 2.9, 10000, 60, f);
+    const used = loanCost(32500, 7.5, 10000, 60, f);
+    expect(promo.totalInterest).toBeLessThan(used.totalInterest);
+  });
+
+  it("handles 0% and a down payment bigger than the price", () => {
+    expect(loanCost(24000, 0, 4000, 50, f).monthly).toBe(400);
+    const over = loanCost(8000, 6.5, 10000, 60, f);
+    expect(over.monthly).toBe(0);
+    expect(over.totalCost).toBe(8000);
+  });
+
+  it("adds tax and fees once, to the price, when asked", () => {
+    const c = loanCost(30000, 0, 0, 60, { ...f, include_tax_fees: true });
+    expect(c.principal).toBeCloseTo(30000 * 1.0415 + 500, 2);
   });
 });

@@ -85,6 +85,29 @@ export async function setListingStatusAction(input: { id: string; status: string
   return { ok: true };
 }
 
+/** Saves (or, with nulls, clears) a listing's own APR, down payment and term. Null means "use my defaults". */
+export async function saveListingTermsAction(input: { id: string; apr: number | null; down: number | null; months: number | null }) {
+  const m = await requireMembership();
+  const p = z
+    .object({
+      id: z.uuid(),
+      apr: z.number().min(0).max(40).nullable(),
+      down: z.number().min(0).max(10_000_000).nullable(),
+      months: z.number().int().min(12).max(96).nullable(),
+    })
+    .parse(input);
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("listings")
+    .update({ apr_override: p.apr, down_override: p.down, term_override: p.months })
+    .eq("id", p.id)
+    .eq("household_id", m.household.id)
+    .select("id");
+  if (error || !data?.length) return fail(error, "Couldn't save those terms. Try again.");
+  refresh(p.id);
+  return { ok: true };
+}
+
 export async function deleteListingAction(input: { id: string }) {
   const m = await requireMembership();
   const id = z.uuid().parse(input.id);
